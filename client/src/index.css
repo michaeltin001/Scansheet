@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --md-ref-typeface-brand: 'DM Sans', sans-serif;
+  --md-ref-typeface-plain: 'DM Sans', sans-serif;
+
+  --theme-bg: #F0F2FF;
+  --theme-text: #1A1A2E;
+  --theme-primary: #6C63FF;
+  --theme-primary-text: #FFFFFF;
+  --theme-secondary: #5A5A72;
+  --theme-card-bg: rgba(255, 255, 255, 0.75);
+  --theme-outline: #B8B8D1;
+  --theme-surface-solid: #FFFFFF;
+  --theme-highlight: rgba(108, 99, 255, 0.2);
+  --theme-shadow-color: rgba(108, 99, 255, 0.2);
+}
+
+:root.dark {
+  --theme-bg: #161625;
+  --theme-text: #E0E0FF;
+  --theme-primary: #8A85FF;
+  --theme-primary-text: #161625;
+  --theme-secondary: #A0A0B8;
+  --theme-card-bg: rgba(30, 30, 50, 0.75);
+  --theme-outline: #4D4D6B;
+  --theme-surface-solid: #1E1E30;
+  --theme-highlight: rgba(138, 133, 255, 0.2);
+  --theme-shadow-color: rgba(138, 133, 255, 0.2);
+}
+
+body {
+  color: var(--theme-text);
+  font-family: 'DM Sans', sans-serif;
+
+  --md-sys-color-primary: var(--theme-primary);
+  --md-sys-color-on-primary: var(--theme-primary-text);
+  --md-sys-color-surface: var(--theme-card-bg);
+  --md-sys-color-on-surface: var(--theme-text);
+  --md-sys-color-outline: var(--theme-outline);
+  --md-sys-color-surface-container-low: var(--theme-card-bg);
+  --md-sys-color-surface-container: var(--theme-card-bg);
+  --md-sys-color-on-surface-variant: var(--theme-secondary);
+  --md-sys-color-secondary-container: rgba(85, 85, 85, 0.15);
+  --md-sys-color-on-secondary-container: var(--theme-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--theme-primary);
+}
+
+:root.dark input[type="date"]::-webkit-calendar-picker-indicator,
+:root.dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+.scroll-shadow-top {
+  box-shadow: inset 0 10px 10px -10px var(--theme-shadow-color);
+}
+
+.scroll-shadow-bottom {
+  box-shadow: inset 0 -10px 10px -10px var(--theme-shadow-color);
+}
+
+.scroll-shadow-both {
+  box-shadow: inset 0 10px 10px -10px var(--theme-shadow-color),
+              inset 0 -10px 10px -10px var(--theme-shadow-color);
+}
+
+.font-tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.content-box-fix {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
