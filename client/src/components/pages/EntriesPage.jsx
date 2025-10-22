@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import StatusMessage from '../ui/StatusMessage';
+import ModalWrapper from '../ui/ModalWrapper';
+import MenuWrapper from '../ui/MenuWrapper';
 import NewEntryPage from '../modals/entry/NewEntryPage';
 import DeleteEntryPage from '../modals/entry/DeleteEntryPage';
 import EntryQRCodePage from '../modals/entry/EntryQRCodePage';
@@ -993,439 +994,159 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 style={{ display: 'none' }}
             />
 
-            {createPortal(
-                <AnimatePresence>
-                    {isNewEntryModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsNewEntryModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <NewEntryPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsNewEntryModalOpen(false)}
-                                    onSuccess={handleNewEntrySuccess}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isNewEntryModalOpen} onClose={() => setIsNewEntryModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <NewEntryPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsNewEntryModalOpen(false)}
+                    onSuccess={handleNewEntrySuccess}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isDeleteEntryModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsDeleteEntryModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <DeleteEntryPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsDeleteEntryModalOpen(false)}
-                                    entries={entriesToDelete}
-                                    onSuccess={handleDeleteSuccess}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isDeleteEntryModalOpen} onClose={() => setIsDeleteEntryModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <DeleteEntryPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsDeleteEntryModalOpen(false)}
+                    entries={entriesToDelete}
+                    onSuccess={handleDeleteSuccess}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isQRCodeModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsQRCodeModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <EntryQRCodePage
-                                    onClose={() => setIsQRCodeModalOpen(false)}
-                                    entry={entryForQRCode}
-                                    onQRCodeUpdate={handleQRCodeUpdate}
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isQRCodeModalOpen} onClose={() => setIsQRCodeModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <EntryQRCodePage
+                    onClose={() => setIsQRCodeModalOpen(false)}
+                    entry={entryForQRCode}
+                    onQRCodeUpdate={handleQRCodeUpdate}
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isEditModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsEditModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <EditEntryPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsEditModalOpen(false)}
-                                    entry={entryToEdit}
-                                    onUpdate={handleEditSuccess}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <EditEntryPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsEditModalOpen(false)}
+                    entry={entryToEdit}
+                    onUpdate={handleEditSuccess}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isDeleteOptionsModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsDeleteOptionsModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <DeletePage
-                                    title="Delete Entries"
-                                    onClose={() => setIsDeleteOptionsModalOpen(false)}
-                                    onDeleteCurrent={handleDeleteCurrentPage}
-                                    onDeleteSelected={handleDeleteAllSelected}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isDeleteOptionsModalOpen} onClose={() => setIsDeleteOptionsModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <DeletePage
+                    title="Delete Entries"
+                    onClose={() => setIsDeleteOptionsModalOpen(false)}
+                    onDeleteCurrent={handleDeleteCurrentPage}
+                    onDeleteSelected={handleDeleteAllSelected}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isExportCSVModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsExportCSVModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <ExportToCSVPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsExportCSVModalOpen(false)}
-                                    onExportCurrent={handleExportCSVCurrentPage}
-                                    onExportSelected={handleExportCSVAllSelected}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isExportCSVModalOpen} onClose={() => setIsExportCSVModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <ExportToCSVPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsExportCSVModalOpen(false)}
+                    onExportCurrent={handleExportCSVCurrentPage}
+                    onExportSelected={handleExportCSVAllSelected}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isExportPDFModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsExportPDFModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <ExportToPDFPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsExportPDFModalOpen(false)}
-                                    onExportCurrent={handleExportPDFCurrentPage}
-                                    onExportSelected={handleExportPDFAllSelected}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isExportPDFModalOpen} onClose={() => setIsExportPDFModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <ExportToPDFPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsExportPDFModalOpen(false)}
+                    onExportCurrent={handleExportPDFCurrentPage}
+                    onExportSelected={handleExportPDFAllSelected}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isPrintModalOpen && contentBoxBounds && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsPrintModalOpen(false)}
-                        >
-                            <motion.div
-                                style={{
-                                    position: 'fixed',
-                                    top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                    left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                    width: contentBoxBounds.width * 0.7,
-                                    height: contentBoxBounds.height * 0.7,
-                                }}
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                transition={{ duration: 0.2 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <PrintBadgesPage
-                                    statusMessage={statusMessage}
-                                    setStatusMessage={setStatusMessage}
-                                    onClose={() => setIsPrintModalOpen(false)}
-                                    onPrintCurrent={handlePrintCurrentPage}
-                                    onPrintSelected={handlePrintAllSelected}
-                                />
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <ModalWrapper isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} contentBoxBounds={contentBoxBounds}>
+                <PrintBadgesPage
+                    statusMessage={statusMessage}
+                    setStatusMessage={setStatusMessage}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    onPrintCurrent={handlePrintCurrentPage}
+                    onPrintSelected={handlePrintAllSelected}
+                />
+            </ModalWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isAddMenuOpen && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsAddMenuOpen(false)}
-                        >
-                            <motion.div
-                                className="absolute"
-                                style={{ top: `${addIconPosition.top}px`, left: `${addIconPosition.left}px` }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                            >
-                                <md-outlined-icon-button onClick={() => setIsAddMenuOpen(false)}>
-                                    <md-icon>add</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div
-                                style={{ top: `${addMenuPosition.top}px`, left: `${addMenuPosition.left}px` }}
-                                className="absolute w-56 bg-[var(--theme-card-bg)] border border-[var(--theme-outline)] rounded-md shadow-lg z-50"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.1 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <ul className="py-1">
-                                    <li>
-                                        <a href="#" onClick={(e) => { e.preventDefault(); openNewEntryModal(); setIsAddMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                                            <md-icon>add_circle</md-icon>
-                                            <span>Create New Entry</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" onClick={(e) => { e.preventDefault(); handleUploadClick(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                                            <md-icon>csv</md-icon>
-                                            <span>Import from CSV</span>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+            <MenuWrapper
+                isOpen={isAddMenuOpen}
+                onClose={() => setIsAddMenuOpen(false)}
+                iconPosition={addIconPosition}
+                menuPosition={addMenuPosition}
+                icon="add"
+            >
+                <ul className="py-1">
+                    <li>
+                        <a href="#" onClick={(e) => { e.preventDefault(); openNewEntryModal(); setIsAddMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
+                            <md-icon>add_circle</md-icon>
+                            <span>Create New Entry</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleUploadClick(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
+                            <md-icon>csv</md-icon>
+                            <span>Import from CSV</span>
+                        </a>
+                    </li>
+                </ul>
+            </MenuWrapper>
 
-            {createPortal(
-                <AnimatePresence>
-                    {isDownloadMenuOpen && (
-                        <motion.div
-                            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsDownloadMenuOpen(false)}
+            <MenuWrapper
+                isOpen={isDownloadMenuOpen}
+                onClose={() => setIsDownloadMenuOpen(false)}
+                iconPosition={downloadIconPosition}
+                menuPosition={downloadMenuPosition}
+                icon="download"
+            >
+                 <ul className="py-1">
+                    <li>
+                        <a
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                openPrintModal();
+                                setIsDownloadMenuOpen(false);
+                            }}
+                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
                         >
-                            <motion.div
-                                className="absolute"
-                                style={{ top: `${downloadIconPosition.top}px`, left: `${downloadIconPosition.left}px` }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                            >
-                                <md-outlined-icon-button onClick={() => setIsDownloadMenuOpen(false)}>
-                                    <md-icon>download</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div
-                                style={{ top: `${downloadMenuPosition.top}px`, left: `${downloadMenuPosition.left}px` }}
-                                className="absolute w-56 bg-[var(--theme-card-bg)] border border-[var(--theme-outline)] rounded-md shadow-lg z-50"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.1 }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <ul className="py-1">
-                                    <li>
-                                        <a
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                openPrintModal();
-                                                setIsDownloadMenuOpen(false);
-                                            }}
-                                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                                        >
-                                            <md-icon>print</md-icon>
-                                            <span>Print Badges</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                openExportPDFModal();
-                                                setIsDownloadMenuOpen(false);
-                                            }}
-                                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                                        >
-                                            <md-icon>picture_as_pdf</md-icon>
-                                            <span>Export to PDF</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                openExportCSVModal();
-                                                setIsDownloadMenuOpen(false);
-                                            }}
-                                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                                        >
-                                            <md-icon>csv</md-icon>
-                                            <span>Export to CSV</span>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.getElementById('portal-root')
-            )}
+                            <md-icon>print</md-icon>
+                            <span>Print Badges</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                openExportPDFModal();
+                                setIsDownloadMenuOpen(false);
+                            }}
+                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
+                        >
+                            <md-icon>picture_as_pdf</md-icon>
+                            <span>Export to PDF</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                openExportCSVModal();
+                                setIsDownloadMenuOpen(false);
+                            }}
+                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
+                        >
+                            <md-icon>csv</md-icon>
+                            <span>Export to CSV</span>
+                        </a>
+                    </li>
+                </ul>
+            </MenuWrapper>
         </>
     );
 };
