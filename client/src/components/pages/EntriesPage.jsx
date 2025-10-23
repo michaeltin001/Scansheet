@@ -1,24 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import StatusMessage from '../ui/StatusMessage';
-import ModalWrapper from '../ui/ModalWrapper';
-import MenuWrapper from '../ui/MenuWrapper';
-import NewEntryPage from '../modals/entry/NewEntryPage';
-import DeleteEntryPage from '../modals/entry/DeleteEntryPage';
-import EntryQRCodePage from '../modals/entry/EntryQRCodePage';
-import EditEntryPage from '../modals/entry/EditEntryPage';
-import DeletePage from '../modals/common/DeletePage';
-import ExportToCSVPage from '../modals/common/ExportToCSVPage';
-import ExportToPDFPage from '../modals/common/ExportToPDFPage';
-import PrintBadgesPage from '../modals/common/PrintBadgesPage';
+import EntriesToolbar from './EntriesPage/EntriesToolbar';
+import EntriesList from './EntriesPage/EntriesList';
+import EntriesPagination from './EntriesPage/EntriesPagination';
+import EntriesModals from './EntriesPage/EntriesModals';
+import EntriesMenus from './EntriesPage/EntriesMenus';
 import { useOverflow } from '../../hooks/useOverflow';
-import "@material/web/iconbutton/outlined-icon-button.js";
-import "@material/web/iconbutton/icon-button.js";
 import "@material/web/icon/icon.js";
-import "@material/web/button/filled-button.js";
-import "@material/web/textfield/outlined-text-field.js";
-import "@material/web/iconbutton/filled-icon-button.js";
 
 const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     const [allEntries, setAllEntries] = useState([]);
@@ -29,14 +18,12 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         const savedSortOption = localStorage.getItem('sortOption');
         return savedSortOption || 'alpha-asc';
     });
-    const [isSortOpen, setIsSortOpen] = useState(false);
     const [selectedEntries, setSelectedEntries] = useState(new Set());
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage, setEntriesPerPage] = useState(() => {
         const saved = localStorage.getItem('entriesPerPage');
         return saved ? parseInt(saved, 10) : 50;
     });
-    const [isEntriesPerPageOpen, setIsEntriesPerPageOpen] = useState(false);
     const [isNewEntryModalOpen, setIsNewEntryModalOpen] = useState(false);
     const [isDeleteEntryModalOpen, setIsDeleteEntryModalOpen] = useState(false);
     const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
@@ -48,7 +35,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
     const [downloadMenuPosition, setDownloadMenuPosition] = useState({});
     const [downloadIconPosition, setDownloadIconPosition] = useState({});
-    
+
     const [isDeleteOptionsModalOpen, setIsDeleteOptionsModalOpen] = useState(false);
     const [isExportCSVModalOpen, setIsExportCSVModalOpen] = useState(false);
     const [isExportPDFModalOpen, setIsExportPDFModalOpen] = useState(false);
@@ -62,17 +49,6 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     const scrollContainerRef = useRef(null);
     const addButtonRef = useRef(null);
     const downloadButtonRef = useRef(null);
-    const searchInputRef = useRef(null);
-    const searchContainerRef = useRef(null);
-    const clearSearchButtonRef = useRef(null);
-    const clearSelectionButtonRef = useRef(null);
-    const deleteButtonRef = useRef(null);
-    const selectAllButtonRef = useRef(null);
-
-    const firstPageButtonRef = useRef(null);
-    const prevPageButtonRef = useRef(null);
-    const nextPageButtonRef = useRef(null);
-    const lastPageButtonRef = useRef(null);
 
     const { isOverflowingTop, isOverflowingBottom } = useOverflow(scrollContainerRef, allEntries);
     const navigate = useNavigate();
@@ -111,48 +87,14 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     useEffect(() => {
         const handleEscKey = (event) => {
             if (event.key === 'Escape') {
-                setIsNewEntryModalOpen(false);
-                setIsDeleteEntryModalOpen(false);
-                setIsQRCodeModalOpen(false);
-                setIsEditModalOpen(false);
-                setIsAddMenuOpen(false);
-                setIsDownloadMenuOpen(false);
-                setIsDeleteOptionsModalOpen(false);
-                setIsExportCSVModalOpen(false);
-                setIsExportPDFModalOpen(false);
-                setIsPrintModalOpen(false);
+                closeAllModalsAndMenus();
             }
         };
         document.addEventListener("keydown", handleEscKey);
         return () => {
             document.removeEventListener("keydown", handleEscKey);
         };
-    }, [isSearchActive]);
-
-    useEffect(() => {
-        const isDisabled = selectedEntries.size === 0;
-        if (downloadButtonRef.current) {
-            downloadButtonRef.current.disabled = isDisabled;
-        }
-        if (deleteButtonRef.current) {
-            deleteButtonRef.current.disabled = isDisabled;
-        }
-        if (clearSelectionButtonRef.current) {
-            clearSelectionButtonRef.current.disabled = isDisabled;
-        }
-    }, [selectedEntries]);
-
-    useEffect(() => {
-        if (selectAllButtonRef.current) {
-            selectAllButtonRef.current.disabled = allEntries.length === 0;
-        }
-    }, [allEntries]);
-
-    useEffect(() => {
-        if (clearSearchButtonRef.current) {
-            clearSearchButtonRef.current.disabled = searchQuery === "";
-        }
-    }, [searchQuery]);
+    }, []);
 
     useEffect(() => {
         if (totalPages > 0 && currentPage > totalPages) {
@@ -162,7 +104,6 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
     useEffect(() => {
         if (!isAddMenuOpen) return;
-
         const handleReposition = () => {
             if (addButtonRef.current) {
                 const rect = addButtonRef.current.getBoundingClientRect();
@@ -173,10 +114,8 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 });
             }
         };
-
         window.addEventListener('resize', handleReposition);
         window.addEventListener('scroll', handleReposition, true);
-        
         return () => {
             window.removeEventListener('resize', handleReposition);
             window.removeEventListener('scroll', handleReposition, true);
@@ -185,7 +124,6 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
     useEffect(() => {
         if (!isDownloadMenuOpen) return;
-
         const handleReposition = () => {
             if (downloadButtonRef.current) {
                 const rect = downloadButtonRef.current.getBoundingClientRect();
@@ -196,33 +134,13 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 });
             }
         };
-
         window.addEventListener('resize', handleReposition);
         window.addEventListener('scroll', handleReposition, true);
-        
         return () => {
             window.removeEventListener('resize', handleReposition);
             window.removeEventListener('scroll', handleReposition, true);
         };
     }, [isDownloadMenuOpen]);
-
-    useEffect(() => {
-        const isFirstPage = currentPage === 1;
-        const isLastPage = currentPage === totalPages || totalPages === 0;
-
-        if (firstPageButtonRef.current) {
-            firstPageButtonRef.current.disabled = isFirstPage;
-        }
-        if (prevPageButtonRef.current) {
-            prevPageButtonRef.current.disabled = isFirstPage;
-        }
-        if (nextPageButtonRef.current) {
-            nextPageButtonRef.current.disabled = isLastPage;
-        }
-        if (lastPageButtonRef.current) {
-            lastPageButtonRef.current.disabled = isLastPage;
-        }
-    }, [currentPage, totalPages]);
 
     const fetchEntries = async () => {
         let sortBy = 'name';
@@ -244,7 +162,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         try {
             const response = await fetch(`/api/entries?sortBy=${sortBy}&order=${order}&page=${currentPage}&limit=${entriesPerPage}&search=${searchQuery}`);
             const data = await response.json();
-            
+
             if (response.ok) {
                 setAllEntries(data.data);
                 setTotalEntries(data.total);
@@ -254,6 +172,19 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         } catch (error) {
             setStatusMessage('Could not fetch entries.');
         }
+    };
+
+    const closeAllModalsAndMenus = () => {
+        setIsNewEntryModalOpen(false);
+        setIsDeleteEntryModalOpen(false);
+        setIsQRCodeModalOpen(false);
+        setIsEditModalOpen(false);
+        setIsAddMenuOpen(false);
+        setIsDownloadMenuOpen(false);
+        setIsDeleteOptionsModalOpen(false);
+        setIsExportCSVModalOpen(false);
+        setIsExportPDFModalOpen(false);
+        setIsPrintModalOpen(false);
     };
 
     const getSelectAllIcon = () => {
@@ -377,7 +308,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         setEntriesToDelete([entry]);
         setIsDeleteEntryModalOpen(true);
     };
-    
+
     const handleDeleteCurrentPage = () => {
         const dummyEntries = selectedCodesOnCurrentPage.map(code => ({ code: code }));
         setEntriesToDelete(dummyEntries);
@@ -391,7 +322,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         setIsDeleteOptionsModalOpen(false);
         setIsDeleteEntryModalOpen(true);
     };
-    
+
     const handleQRCodeClick = async (entry) => {
         try {
             const response = await fetch(`/api/entry/${entry.code}`);
@@ -490,7 +421,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
+
                 const disposition = response.headers.get('content-disposition');
                 let filename = 'entries.csv';
                 if (disposition && disposition.includes('attachment')) {
@@ -551,7 +482,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
+
                 const disposition = response.headers.get('content-disposition');
                 let filename = 'entries.pdf';
                 if (disposition && disposition.includes('attachment')) {
@@ -612,7 +543,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
+
                 const disposition = response.headers.get('content-disposition');
                 let filename = 'badges.pdf';
                 if (disposition && disposition.includes('attachment')) {
@@ -684,7 +615,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             setStatusMessage("No entries selected.");
         }
     };
-    
+
     const openPrintModal = () => {
         if (selectedEntries.size > 0) {
             updateBounds();
@@ -692,6 +623,66 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         } else {
             setStatusMessage("No entries selected.");
         }
+    };
+
+    const handleSearchToggle = (isActive) => {
+        setIsSearchActive(isActive);
+        if (!isActive) {
+            setSearchQuery("");
+        }
+    };
+
+    const handleSearchChange = (query) => {
+        setSearchQuery(query);
+        setCurrentPage(1);
+    };
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    const handleEntriesPerPageChange = (newLimit) => {
+        setEntriesPerPage(newLimit);
+        setCurrentPage(1);
+    };
+
+    const handleSortChange = (newSortOption) => {
+        setSortOption(newSortOption);
+        setCurrentPage(1);
+    };
+
+    const modalStates = {
+        isNewEntryModalOpen,
+        isDeleteEntryModalOpen,
+        isQRCodeModalOpen,
+        isEditModalOpen,
+        isDeleteOptionsModalOpen,
+        isExportCSVModalOpen,
+        isExportPDFModalOpen,
+        isPrintModalOpen,
+    };
+
+    const modalHandlers = {
+        closeNewEntryModal: () => setIsNewEntryModalOpen(false),
+        handleNewEntrySuccess,
+        closeDeleteEntryModal: () => setIsDeleteEntryModalOpen(false),
+        handleDeleteSuccess,
+        closeQRCodeModal: () => setIsQRCodeModalOpen(false),
+        handleQRCodeUpdate,
+        closeEditModal: () => setIsEditModalOpen(false),
+        handleEditSuccess,
+        closeDeleteOptionsModal: () => setIsDeleteOptionsModalOpen(false),
+        handleDeleteCurrentPage,
+        handleDeleteAllSelected,
+        closeExportCSVModal: () => setIsExportCSVModalOpen(false),
+        handleExportCSVCurrentPage,
+        handleExportCSVAllSelected,
+        closeExportPDFModal: () => setIsExportPDFModalOpen(false),
+        handleExportPDFCurrentPage,
+        handleExportPDFAllSelected,
+        closePrintModal: () => setIsPrintModalOpen(false),
+        handlePrintCurrentPage,
+        handlePrintAllSelected,
     };
 
     let shadowClass = '';
@@ -703,15 +694,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         shadowClass = 'scroll-shadow-bottom';
     }
 
-    const anyModalIsOpen =
-        isNewEntryModalOpen ||
-        isDeleteEntryModalOpen ||
-        isQRCodeModalOpen ||
-        isEditModalOpen ||
-        isDeleteOptionsModalOpen ||
-        isExportCSVModalOpen ||
-        isExportPDFModalOpen ||
-        isPrintModalOpen;
+    const anyModalIsOpen = Object.values(modalStates).some(state => state);
 
     return (
         <>
@@ -723,266 +706,52 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                     {!anyModalIsOpen && (
                         <StatusMessage message={statusMessage} onDismiss={() => setStatusMessage("")} />
                     )}
-                    <div className="relative flex justify-center items-center mb-6">
-                        <div className="absolute left-0 flex items-center gap-2">
-                            <motion.div
-                                whileHover={selectedEntries.size > 0 ? { scale: 1.05 } : {}}
-                                whileTap={selectedEntries.size > 0 ? { scale: 0.95 } : {}}
-                            >
-                                    <md-outlined-icon-button 
-                                        ref={clearSelectionButtonRef} 
-                                        onClick={handleClearSelection}
-                                    >
-                                    <md-icon>history</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div
-                                whileHover={allEntries.length > 0 ? { scale: 1.05 } : {}}
-                                whileTap={allEntries.length > 0 ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button ref={selectAllButtonRef} onClick={handleSelectAll}>
-                                    <md-icon>{getSelectAllIcon()}</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div
-                                whileHover={selectedEntries.size > 0 ? { scale: 1.05 } : {}}
-                                whileTap={selectedEntries.size > 0 ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button 
-                                    ref={downloadButtonRef}
-                                    onClick={handleDownloadMenuToggle}
-                                    style={{ visibility: isDownloadMenuOpen ? 'hidden' : 'visible' }}
-                                >
-                                    <md-icon>download</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div
-                                whileHover={selectedEntries.size > 0 ? { scale: 1.05 } : {}}
-                                whileTap={selectedEntries.size > 0 ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button
-                                    ref={deleteButtonRef}
-                                    onClick={handleDeleteClick}
-                                >
-                                    <md-icon>delete</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                        </div>
-                        <h1 className="text-3xl font-bold text-[var(--theme-text)]">Entries</h1>
-                        <div className="absolute right-0 flex items-center gap-2">
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                {isSearchActive ? (
-                                    <md-filled-icon-button onClick={() => {
-                                        setSearchQuery("");
-                                        setIsSearchActive(false);
-                                    }}>
-                                        <md-icon>search</md-icon>
-                                    </md-filled-icon-button>
-                                ) : (
-                                    <md-outlined-icon-button onClick={() => setIsSearchActive(true)}>
-                                        <md-icon>search</md-icon>
-                                    </md-outlined-icon-button>
-                                )}
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <md-outlined-icon-button 
-                                    ref={addButtonRef} 
-                                    onClick={handleAddMenuToggle} 
-                                    style={{ visibility: isAddMenuOpen ? 'hidden' : 'visible' }}
-                                >
-                                    <md-icon>add</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                        </div>
-                    </div>
 
-                    <AnimatePresence>
-                        {isSearchActive && (
-                            <motion.div
-                                ref={searchContainerRef}
-                                initial={{ opacity: 0, scaleY: 0 }}
-                                animate={{ opacity: 1, scaleY: 1 }}
-                                exit={{ opacity: 0, scaleY: 0 }}
-                                transition={{ duration: 0.25 }}
-                                style={{ transformOrigin: 'top' }}
-                                className="mb-6 p-4 border border-[var(--theme-outline)] rounded-xl bg-[var(--theme-card-bg)] shadow-[0_10px_15px_-3px_var(--theme-shadow-color)]"
-                            >
-                                <div className="relative flex items-center">
-                                    <input
-                                        ref={searchInputRef}
-                                        placeholder="Search"
-                                        value={searchQuery}
-                                        onChange={(e) => {
-                                            setSearchQuery(e.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        className="w-full py-[7px] pl-4 pr-12 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                                    />
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        className="absolute right-0 z-10 flex items-center pr-2"
-                                    >
-                                        <md-icon-button 
-                                            ref={clearSearchButtonRef} 
-                                            onClick={() => {
-                                                setSearchQuery("");
-                                                if (searchInputRef.current) {
-                                                    searchInputRef.current.value = "";
-                                                }
-                                            }}
-                                            disabled={!searchQuery}
-                                        >
-                                            <md-icon>close</md-icon>
-                                        </md-icon-button>
-                                    </motion.div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <EntriesToolbar
+                        selectedEntries={selectedEntries}
+                        allEntries={allEntries}
+                        onClearSelection={handleClearSelection}
+                        onSelectAll={handleSelectAll}
+                        getSelectAllIcon={getSelectAllIcon}
+                        onDownloadMenuToggle={handleDownloadMenuToggle}
+                        onDeleteClick={handleDeleteClick}
+                        isSearchActive={isSearchActive}
+                        searchQuery={searchQuery}
+                        onSearchToggle={handleSearchToggle}
+                        onSearchChange={handleSearchChange}
+                        onAddMenuToggle={handleAddMenuToggle}
+                        isAddMenuOpen={isAddMenuOpen}
+                        isDownloadMenuOpen={isDownloadMenuOpen}
+                        addButtonRef={addButtonRef}
+                        downloadButtonRef={downloadButtonRef}
+                    />
 
-                    <div 
-                        ref={scrollContainerRef} 
+                    <div
+                        ref={scrollContainerRef}
                         className={`flex-1 overflow-y-auto ${shadowClass}`}
                     >
-                        <div className="flex flex-col gap-4">
-                            {allEntries.map((entry) => {
-                                const isSelected = selectedEntries.has(entry.code);
-
-                                return (
-                                    <motion.div
-                                        key={entry.code}
-                                        whileHover={{ boxShadow: "inset 0 0 0 2px var(--theme-primary)" }}
-                                        className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer transition-colors ${
-                                            isSelected
-                                                ? 'bg-[var(--theme-highlight)] border-[var(--theme-primary)]'
-                                                : 'border-[var(--theme-outline)]'
-                                        }`}
-                                        onClick={() => handleToggleSelect(entry.code)}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div onClick={(e) => e.stopPropagation()}>
-                                                <md-icon-button onClick={() => handleToggleSelect(entry.code)}>
-                                                    <md-icon>{isSelected ? 'check_box' : 'check_box_outline_blank'}</md-icon>
-                                                </md-icon-button>
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-lg">{entry.name}</p>
-                                            </div>
-                                        </div>
-
-                                        <div onClick={(e) => e.stopPropagation()} className="flex gap-2 items-center">
-                                            <md-icon-button onClick={() => navigate(`/entries/${entry.code}`)}>
-                                                <md-icon>account_circle</md-icon>
-                                            </md-icon-button>
-                                            <md-icon-button onClick={() => handleEditClick(entry)}>
-                                                <md-icon>edit</md-icon>
-                                            </md-icon-button>
-                                            <md-icon-button onClick={() => handleCopyClick(entry)}>
-                                                <md-icon>content_copy</md-icon>
-                                            </md-icon-button>
-                                            <md-icon-button onClick={() => handleQRCodeClick(entry)}>
-                                                <md-icon>qr_code_2</md-icon>
-                                            </md-icon-button>
-                                            <md-icon-button onClick={() => handleDeleteClickEntry(entry)}>
-                                                <md-icon>delete</md-icon>
-                                            </md-icon-button>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-                         {totalEntries === 0 && (
-                            <p className="text-center p-8 text-[var(--theme-text)] opacity-70">No entries found.</p>
-                        )}
+                        <EntriesList
+                            allEntries={allEntries}
+                            selectedEntries={selectedEntries}
+                            onToggleSelect={handleToggleSelect}
+                            onEditClick={handleEditClick}
+                            onCopyClick={handleCopyClick}
+                            onQRCodeClick={handleQRCodeClick}
+                            onDeleteClick={handleDeleteClickEntry}
+                            totalEntries={totalEntries}
+                        />
                     </div>
-                    <div className="mt-6 flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <motion.div 
-                                whileHover={currentPage > 1 ? { scale: 1.05 } : {}} 
-                                whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button ref={firstPageButtonRef} onClick={() => setCurrentPage(1)}>
-                                    <md-icon>keyboard_double_arrow_left</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div 
-                                whileHover={currentPage > 1 ? { scale: 1.05 } : {}} 
-                                whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button ref={prevPageButtonRef} onClick={() => setCurrentPage(p => p - 1)}>
-                                    <md-icon>keyboard_arrow_left</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <span className="text-sm font-medium text-[var(--theme-text)]">
-                                Page {currentPage} of {totalPages > 0 ? totalPages : 1}
-                            </span>
-                            <motion.div 
-                                whileHover={currentPage < totalPages ? { scale: 1.05 } : {}} 
-                                whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button ref={nextPageButtonRef} onClick={() => setCurrentPage(p => p + 1)}>
-                                    <md-icon>keyboard_arrow_right</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                            <motion.div 
-                                whileHover={currentPage < totalPages ? { scale: 1.05 } : {}} 
-                                whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
-                            >
-                                <md-outlined-icon-button ref={lastPageButtonRef} onClick={() => setCurrentPage(totalPages)}>
-                                    <md-icon>keyboard_double_arrow_right</md-icon>
-                                </md-outlined-icon-button>
-                            </motion.div>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-[var(--theme-text)]">
-                                Results: {totalEntries}
-                            </span>
-                            <div className="relative">
-                                <select
-                                    value={sortOption}
-                                    onChange={(e) => {
-                                        setSortOption(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    onClick={() => setIsSortOpen(!isSortOpen)}
-                                    onBlur={() => setIsSortOpen(false)}
-                                    className="appearance-none p-2 pl-3 pr-8 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                                >
-                                    <option value="alpha-asc">{"A - Z"}</option>
-                                    <option value="alpha-desc">{"Z - A"}</option>
-                                    <option value="date-asc">{"Oldest"}</option>
-                                    <option value="date-desc">{"Newest"}</option>
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                                    <md-icon>{isSortOpen ? 'unfold_less' : 'unfold_more'}</md-icon>
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <select
-                                    value={entriesPerPage}
-                                    onChange={(e) => {
-                                        setEntriesPerPage(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    onClick={() => setIsEntriesPerPageOpen(!isEntriesPerPageOpen)}
-                                    onBlur={() => setIsEntriesPerPageOpen(false)}
-                                    className="appearance-none p-2 pl-3 pr-8 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                                >
-                                    <option value="5">5</option>
-                                    <option value="10">10</option>
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                                    <md-icon>{isEntriesPerPageOpen ? 'unfold_less' : 'unfold_more'}</md-icon>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <EntriesPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalEntries={totalEntries}
+                        entriesPerPage={entriesPerPage}
+                        sortOption={sortOption}
+                        onPageChange={handlePageChange}
+                        onEntriesPerPageChange={handleEntriesPerPageChange}
+                        onSortChange={handleSortChange}
+                    />
                 </div>
             </main>
 
@@ -994,159 +763,33 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 style={{ display: 'none' }}
             />
 
-            <ModalWrapper isOpen={isNewEntryModalOpen} onClose={() => setIsNewEntryModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <NewEntryPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsNewEntryModalOpen(false)}
-                    onSuccess={handleNewEntrySuccess}
-                />
-            </ModalWrapper>
+            <EntriesModals
+                statusMessage={statusMessage}
+                setStatusMessage={setStatusMessage}
+                contentBoxBounds={contentBoxBounds}
+                modalStates={modalStates}
+                modalHandlers={modalHandlers}
+                entriesToDelete={entriesToDelete}
+                entryForQRCode={entryForQRCode}
+                entryToEdit={entryToEdit}
+            />
 
-            <ModalWrapper isOpen={isDeleteEntryModalOpen} onClose={() => setIsDeleteEntryModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <DeleteEntryPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsDeleteEntryModalOpen(false)}
-                    entries={entriesToDelete}
-                    onSuccess={handleDeleteSuccess}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isQRCodeModalOpen} onClose={() => setIsQRCodeModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <EntryQRCodePage
-                    onClose={() => setIsQRCodeModalOpen(false)}
-                    entry={entryForQRCode}
-                    onQRCodeUpdate={handleQRCodeUpdate}
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <EditEntryPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsEditModalOpen(false)}
-                    entry={entryToEdit}
-                    onUpdate={handleEditSuccess}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isDeleteOptionsModalOpen} onClose={() => setIsDeleteOptionsModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <DeletePage
-                    title="Delete Entries"
-                    onClose={() => setIsDeleteOptionsModalOpen(false)}
-                    onDeleteCurrent={handleDeleteCurrentPage}
-                    onDeleteSelected={handleDeleteAllSelected}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isExportCSVModalOpen} onClose={() => setIsExportCSVModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <ExportToCSVPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsExportCSVModalOpen(false)}
-                    onExportCurrent={handleExportCSVCurrentPage}
-                    onExportSelected={handleExportCSVAllSelected}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isExportPDFModalOpen} onClose={() => setIsExportPDFModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <ExportToPDFPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsExportPDFModalOpen(false)}
-                    onExportCurrent={handleExportPDFCurrentPage}
-                    onExportSelected={handleExportPDFAllSelected}
-                />
-            </ModalWrapper>
-
-            <ModalWrapper isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} contentBoxBounds={contentBoxBounds}>
-                <PrintBadgesPage
-                    statusMessage={statusMessage}
-                    setStatusMessage={setStatusMessage}
-                    onClose={() => setIsPrintModalOpen(false)}
-                    onPrintCurrent={handlePrintCurrentPage}
-                    onPrintSelected={handlePrintAllSelected}
-                />
-            </ModalWrapper>
-
-            <MenuWrapper
-                isOpen={isAddMenuOpen}
-                onClose={() => setIsAddMenuOpen(false)}
-                iconPosition={addIconPosition}
-                menuPosition={addMenuPosition}
-                icon="add"
-            >
-                <ul className="py-1">
-                    <li>
-                        <a href="#" onClick={(e) => { e.preventDefault(); openNewEntryModal(); setIsAddMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                            <md-icon>add_circle</md-icon>
-                            <span>Create New Entry</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" onClick={(e) => { e.preventDefault(); handleUploadClick(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                            <md-icon>csv</md-icon>
-                            <span>Import from CSV</span>
-                        </a>
-                    </li>
-                </ul>
-            </MenuWrapper>
-
-            <MenuWrapper
-                isOpen={isDownloadMenuOpen}
-                onClose={() => setIsDownloadMenuOpen(false)}
-                iconPosition={downloadIconPosition}
-                menuPosition={downloadMenuPosition}
-                icon="download"
-            >
-                 <ul className="py-1">
-                    <li>
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                openPrintModal();
-                                setIsDownloadMenuOpen(false);
-                            }}
-                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                        >
-                            <md-icon>print</md-icon>
-                            <span>Print Badges</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                openExportPDFModal();
-                                setIsDownloadMenuOpen(false);
-                            }}
-                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                        >
-                            <md-icon>picture_as_pdf</md-icon>
-                            <span>Export to PDF</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a
-                            href="#"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                openExportCSVModal();
-                                setIsDownloadMenuOpen(false);
-                            }}
-                            className={`flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] ${selectedEntries.size > 0 ? 'hover:bg-[var(--theme-highlight)]' : 'opacity-50 cursor-not-allowed'}`}
-                        >
-                            <md-icon>csv</md-icon>
-                            <span>Export to CSV</span>
-                        </a>
-                    </li>
-                </ul>
-            </MenuWrapper>
+            <EntriesMenus
+                isAddMenuOpen={isAddMenuOpen}
+                closeAddMenu={() => setIsAddMenuOpen(false)}
+                addIconPosition={addIconPosition}
+                addMenuPosition={addMenuPosition}
+                openNewEntryModal={openNewEntryModal}
+                handleUploadClick={handleUploadClick}
+                isDownloadMenuOpen={isDownloadMenuOpen}
+                closeDownloadMenu={() => setIsDownloadMenuOpen(false)}
+                downloadIconPosition={downloadIconPosition}
+                downloadMenuPosition={downloadMenuPosition}
+                openPrintModal={openPrintModal}
+                openExportPDFModal={openExportPDFModal}
+                openExportCSVModal={openExportCSVModal}
+                selectedEntriesCount={selectedEntries.size}
+            />
         </>
     );
 };
