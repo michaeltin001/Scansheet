@@ -1,0 +1,63 @@
+import React from 'react';
+import MenuWrapper from '../../ui/MenuWrapper';
+import "@material/web/icon/icon.js";
+
+const DateMenus = ({
+    isDownloadMenuOpen,
+    closeDownloadMenu,
+    downloadIconPosition,
+    downloadMenuPosition,
+    openExportPDFModal,
+    openExportCSVModal,
+    isOptionsMenuOpen,
+    closeOptionsMenu,
+    optionsIconPosition,
+    optionsMenuPosition,
+    openNewScanModal
+}) => {
+    return (
+        <>
+            <MenuWrapper
+                isOpen={isDownloadMenuOpen}
+                onClose={closeDownloadMenu}
+                iconPosition={downloadIconPosition}
+                menuPosition={downloadMenuPosition}
+                icon="download"
+            >
+                <ul className="py-1">
+                    <li>
+                        <a href="#" onClick={(e) => { e.preventDefault(); openExportPDFModal(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
+                            <md-icon>picture_as_pdf</md-icon>
+                            <span>Export to PDF</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onClick={(e) => { e.preventDefault(); openExportCSVModal(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
+                            <md-icon>csv</md-icon>
+                            <span>Export to CSV</span>
+                        </a>
+                    </li>
+                </ul>
+            </MenuWrapper>
+
+            <MenuWrapper
+                isOpen={isOptionsMenuOpen}
+                onClose={closeOptionsMenu}
+                iconPosition={optionsIconPosition}
+                menuPosition={optionsMenuPosition}
+                icon="more_vert"
+            >
+                <ul className="py-1">
+                    <li>
+                        <a href="#" onClick={(e) => { e.preventDefault(); openNewScanModal(); closeOptionsMenu(); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
+                            <md-icon>add_circle</md-icon>
+                            <span>Create New Scan</span>
+                        </a>
+                    </li>
+                </ul>
+            </MenuWrapper>
+        </>
+    );
+};
+
+export default DateMenus;

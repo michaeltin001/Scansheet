@@ -1,22 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import StatusMessage from '../ui/StatusMessage';
-import CategoryFilterPage from '../modals/filter/CategoryFilterPage';
-import DeleteScanPage from '../modals/scan/DeleteScanPage';
-import NewScanPage from '../modals/scan/NewScanPage';
-import EditScanPage from '../modals/scan/EditScanPage';
-import ExportOptionsPage from '../modals/common/ExportOptionsPage';
-import CategorySelectionPage from '../modals/filter/CategorySelectionPage';
+import DateToolbar from './DatePage/DateToolbar';
+import DateScanList from './DatePage/DateScanList';
+import DatePagination from './DatePage/DatePagination';
+import DateModals from './DatePage/DateModals';
+import DateMenus from './DatePage/DateMenus';
 import { useOverflow } from '../../hooks/useOverflow';
-import "@material/web/textfield/outlined-text-field.js";
-import "@material/web/button/filled-button.js";
-import "@material/web/button/outlined-button.js";
-import "@material/web/iconbutton/outlined-icon-button.js";
-import "@material/web/iconbutton/icon-button.js";
 import "@material/web/icon/icon.js";
-import "@material/web/iconbutton/filled-icon-button.js";
 
 const DatePage = ({ statusMessage, setStatusMessage }) => {
     const { date } = useParams();
@@ -33,8 +24,6 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         const savedSortOption = localStorage.getItem('scanSortOption');
         return savedSortOption || 'date-desc';
     });
-    const [isSortOpen, setIsSortOpen] = useState(false);
-    const [isScansPerPageOpen, setIsScansPerPageOpen] = useState(false);
     const [isNewScanModalOpen, setIsNewScanModalOpen] = useState(false);
     const [isEditScanModalOpen, setIsEditScanModalOpen] = useState(false);
     const [scanToEdit, setScanToEdit] = useState(null);
@@ -63,10 +52,6 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
     const dateFilterRef = useRef(null);
     const downloadButtonRef = useRef(null);
     const optionsButtonRef = useRef(null);
-    const firstPageButtonRef = useRef(null);
-    const prevPageButtonRef = useRef(null);
-    const nextPageButtonRef = useRef(null);
-    const lastPageButtonRef = useRef(null);
 
     const { isOverflowingTop, isOverflowingBottom } = useOverflow(scrollContainerRef, scans);
     const totalPages = Math.ceil(totalScans / scansPerPage);
@@ -128,13 +113,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
     useEffect(() => {
         const handleEscKey = (event) => {
             if (event.key === 'Escape') {
-                setIsDownloadMenuOpen(false);
-                setIsCategoryFilterModalOpen(false);
-                setIsNewScanModalOpen(false);
-                setIsEditScanModalOpen(false);
-                setIsOptionsMenuOpen(false);
-                setIsDeleteScanModalOpen(false);
-                setIsCategorySelectionOpen(false);
+                closeAllModalsAndMenus();
             }
         };
         document.addEventListener("keydown", handleEscKey);
@@ -142,24 +121,6 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
             document.removeEventListener("keydown", handleEscKey);
         };
     }, []);
-
-    useEffect(() => {
-        const isFirstPage = currentPage === 1;
-        const isLastPage = currentPage === totalPages || totalPages === 0;
-
-        if (firstPageButtonRef.current) {
-            firstPageButtonRef.current.disabled = isFirstPage;
-        }
-        if (prevPageButtonRef.current) {
-            prevPageButtonRef.current.disabled = isFirstPage;
-        }
-        if (nextPageButtonRef.current) {
-            nextPageButtonRef.current.disabled = isLastPage;
-        }
-        if (lastPageButtonRef.current) {
-            lastPageButtonRef.current.disabled = isLastPage;
-        }
-    }, [currentPage, totalPages]);
 
     useEffect(() => {
         if (!isDownloadMenuOpen) return;
@@ -177,7 +138,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
         window.addEventListener('resize', handleReposition);
         window.addEventListener('scroll', handleReposition, true);
-        
+
         return () => {
             window.removeEventListener('resize', handleReposition);
             window.removeEventListener('scroll', handleReposition, true);
@@ -200,7 +161,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
         window.addEventListener('resize', handleReposition);
         window.addEventListener('scroll', handleReposition, true);
-        
+
         return () => {
             window.removeEventListener('resize', handleReposition);
             window.removeEventListener('scroll', handleReposition, true);
@@ -255,6 +216,17 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         } catch (error) {
             setStatusMessage('Could not load scan history.');
         }
+    };
+
+    const closeAllModalsAndMenus = () => {
+        setIsDownloadMenuOpen(false);
+        setIsCategoryFilterModalOpen(false);
+        setIsNewScanModalOpen(false);
+        setIsEditScanModalOpen(false);
+        setIsOptionsMenuOpen(false);
+        setIsDeleteScanModalOpen(false);
+        setIsCategorySelectionOpen(false);
+        setIsExportModalOpen(false);
     };
 
     const handleDownloadMenuToggle = (event) => {
@@ -386,7 +358,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                         filename = filenameMatch[1];
                     }
                 }
-                
+
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
@@ -468,6 +440,20 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         setIsExportModalOpen(true);
     };
 
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    const handleScansPerPageChange = (newLimit) => {
+        setScansPerPage(newLimit);
+        setCurrentPage(1);
+    };
+
+    const handleSortChange = (newSortOption) => {
+        setSortOption(newSortOption);
+        setCurrentPage(1);
+    };
+
     let shadowClass = '';
     if (isOverflowingTop && isOverflowingBottom) {
         shadowClass = 'scroll-shadow-both';
@@ -477,562 +463,117 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         shadowClass = 'scroll-shadow-bottom';
     }
 
-    const anyModalIsOpen =
-        isCategoryFilterModalOpen ||
-        isDeleteScanModalOpen ||
-        isNewScanModalOpen ||
-        isEditScanModalOpen ||
-        isExportModalOpen ||
-        isCategorySelectionOpen;
+    const modalStates = {
+        isCategoryFilterModalOpen,
+        isDeleteScanModalOpen,
+        isNewScanModalOpen,
+        isEditScanModalOpen,
+        isExportModalOpen,
+        isCategorySelectionOpen,
+    };
 
-return (
-    <>
-        <main className="container mx-auto p-6 flex-1 flex flex-col min-h-0">
-            <div
-                ref={contentBoxRef}
-                className="content-box-fix relative bg-[var(--theme-card-bg)] p-6 rounded-xl border border-[var(--theme-outline)] backdrop-blur-lg flex-1 flex flex-col overflow-hidden"
-            >
-                {!anyModalIsOpen && (
-                    <StatusMessage message={statusMessage} onDismiss={() => setStatusMessage("")} />
-                )}
-                <div className="relative flex justify-center items-center mb-6">
-                    <div className="absolute left-0 flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            <md-outlined-icon-button onClick={() => navigate(location.state?.from || '/dates')}>
-                                <md-icon>arrow_back</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            <md-outlined-icon-button 
-                                ref={downloadButtonRef} 
-                                onClick={handleDownloadMenuToggle}
-                                style={{ visibility: isDownloadMenuOpen ? 'hidden' : 'visible' }}
-                            >
-                                <md-icon>download</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                    </div>
-                    <h1 className="text-3xl font-bold text-[var(--theme-text)]">{formattedDisplayDate()}</h1>
-                    <div className="absolute right-0 flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            {isDateFilterActive ? (
-                                <md-filled-icon-button onClick={() => {
-                                    setIsDateFilterActive(false);
-                                    handleRestoreCategories();
-                                }}>
-                                    <md-icon>search</md-icon>
-                                </md-filled-icon-button>
-                            ) : (
-                                <md-outlined-icon-button onClick={() => setIsDateFilterActive(true)}>
-                                    <md-icon>search</md-icon>
-                                </md-outlined-icon-button>
-                            )}
-                        </motion.div>
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                            <md-outlined-icon-button
-                                ref={optionsButtonRef}
-                                onClick={handleOptionsMenuToggle}
-                                style={{ visibility: isOptionsMenuOpen ? 'hidden' : 'visible' }}
-                            >
-                                <md-icon>more_vert</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                    </div>
-                </div>
+    const modalHandlers = {
+        closeCategoryFilterModal: () => setIsCategoryFilterModalOpen(false),
+        setSelectedCategories,
+        closeDeleteScanModal: () => setIsDeleteScanModalOpen(false),
+        handleDeleteScanSuccess,
+        closeNewScanModal: () => setIsNewScanModalOpen(false),
+        handleNewScanSuccess,
+        openCategorySelectionModal,
+        setSelectedCategory,
+        closeCategorySelectionModal: () => setIsCategorySelectionOpen(false),
+        openNewScanModal,
+        closeEditScanModal: () => setIsEditScanModalOpen(false),
+        handleEditScanSuccess,
+        closeExportModal: () => setIsExportModalOpen(false),
+        handleExport,
+        exportTitle,
+    };
 
-                <AnimatePresence>
-                    {isDateFilterActive && (
-                        <motion.div
-                            ref={dateFilterRef}
-                            initial={{ opacity: 0, scaleY: 0 }}
-                            animate={{ opacity: 1, scaleY: 1 }}
-                            exit={{ opacity: 0, scaleY: 0 }}
-                            transition={{ duration: 0.25 }}
-                            style={{ transformOrigin: 'top' }}
-                            className="mb-6 p-4 border border-[var(--theme-outline)] rounded-xl bg-[var(--theme-card-bg)] shadow-[0_10px_15px_-3px_var(--theme-shadow-color)]"
-                        >
-                            <div className="relative flex flex-wrap items-center gap-2">
-                                <md-icon-button onClick={openCategoryFilterModal}>
-                                    <md-icon>menu</md-icon>
-                                </md-icon-button>
-                                <input
-                                    type="date"
-                                    value={date || ''}
-                                    disabled
-                                    className="p-1.5 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                                />
-                                <span className="text-[var(--theme-text)]">to</span>
-                                <input
-                                    type="date"
-                                    value={date || ''}
-                                    disabled
-                                    className="p-1.5 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                                />
-                                <div className="absolute right-0 z-10 flex items-center gap-2">
-                                    <md-icon-button onClick={handleRestoreCategories}>
-                                        <md-icon>history</md-icon>
-                                    </md-icon-button>
-                                    <md-icon-button onClick={handleRestoreCategories}>
-                                        <md-icon>close</md-icon>
-                                    </md-icon-button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-                
+    const anyModalIsOpen = Object.values(modalStates).some(state => state);
+
+    return (
+        <>
+            <main className="container mx-auto p-6 flex-1 flex flex-col min-h-0">
                 <div
-                    ref={scrollContainerRef}
-                    className={`flex-1 overflow-y-auto ${shadowClass}`}
+                    ref={contentBoxRef}
+                    className="content-box-fix relative bg-[var(--theme-card-bg)] p-6 rounded-xl border border-[var(--theme-outline)] backdrop-blur-lg flex-1 flex flex-col overflow-hidden"
                 >
-                    <div className="flex flex-col gap-4">
-                        {scans.map((scan, index) => {
-                            const scanDate = new Date(scan.date);
-                            const formattedScanDate = formatDate(scanDate);
-                            const formattedTime = formatTime24Hour(scanDate);
+                    {!anyModalIsOpen && (
+                        <StatusMessage message={statusMessage} onDismiss={() => setStatusMessage("")} />
+                    )}
 
-                            return (
-                                <motion.div
-                                    key={index}
-                                    whileHover={{ boxShadow: "inset 0 0 0 2px var(--theme-primary)" }}
-                                    className="border border-[var(--theme-outline)] rounded-lg p-4 flex justify-between items-center"
-                                >
-                                    <div>
-                                        <p className="opacity-70 text-xs">Category: {scan.category_name}</p>
-                                        <p className="font-semibold text-lg">{scan.entry_name}</p>
-                                        <p className="font-semibold text-lg font-tabular-nums">{`${formattedScanDate} at ${formattedTime}`}</p>
-                                    </div>
-                                    <div onClick={(e) => e.stopPropagation()} className="flex gap-2 items-center">
-                                        <md-icon-button onClick={() => openEditScanModal(scan)}>
-                                            <md-icon>edit</md-icon>
-                                        </md-icon-button>
-                                        <md-icon-button onClick={() => openDeleteScanModal(scan)}>
-                                            <md-icon>delete</md-icon>
-                                        </md-icon-button>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                        {scans.length === 0 && (
-                            <p className="text-center p-8 text-[var(--theme-text)] opacity-70">No scan history available.</p>
-                        )}
+                    <DateToolbar
+                        date={date}
+                        isDateFilterActive={isDateFilterActive}
+                        handleRestoreCategories={handleRestoreCategories}
+                        setIsDateFilterActive={setIsDateFilterActive}
+                        handleDownloadMenuToggle={handleDownloadMenuToggle}
+                        isDownloadMenuOpen={isDownloadMenuOpen}
+                        downloadButtonRef={downloadButtonRef}
+                        handleOptionsMenuToggle={handleOptionsMenuToggle}
+                        isOptionsMenuOpen={isOptionsMenuOpen}
+                        optionsButtonRef={optionsButtonRef}
+                        dateFilterRef={dateFilterRef}
+                        openCategoryFilterModal={openCategoryFilterModal}
+                        formattedDisplayDate={formattedDisplayDate}
+                    />
+
+                    <div
+                        ref={scrollContainerRef}
+                        className={`flex-1 overflow-y-auto ${shadowClass}`}
+                    >
+                        <DateScanList
+                            scans={scans}
+                            formatDate={formatDate}
+                            formatTime24Hour={formatTime24Hour}
+                            onEditClick={openEditScanModal}
+                            onDeleteClick={openDeleteScanModal}
+                            totalScans={totalScans}
+                        />
                     </div>
+
+                    <DatePagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalScans={totalScans}
+                        scansPerPage={scansPerPage}
+                        sortOption={sortOption}
+                        onPageChange={handlePageChange}
+                        onScansPerPageChange={handleScansPerPageChange}
+                        onSortChange={handleSortChange}
+                    />
                 </div>
+            </main>
 
-                <div className="mt-6 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <motion.div 
-                            whileHover={currentPage > 1 ? { scale: 1.05 } : {}} 
-                            whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
-                        >
-                            <md-outlined-icon-button ref={firstPageButtonRef} onClick={() => setCurrentPage(1)}>
-                                <md-icon>keyboard_double_arrow_left</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <motion.div 
-                            whileHover={currentPage > 1 ? { scale: 1.05 } : {}} 
-                            whileTap={currentPage > 1 ? { scale: 0.95 } : {}}
-                        >
-                            <md-outlined-icon-button ref={prevPageButtonRef} onClick={() => setCurrentPage(p => p - 1)}>
-                                <md-icon>keyboard_arrow_left</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <span className="text-sm font-medium text-[var(--theme-text)]">
-                            Page {currentPage} of {totalPages > 0 ? totalPages : 1}
-                        </span>
-                        <motion.div 
-                            whileHover={currentPage < totalPages ? { scale: 1.05 } : {}} 
-                            whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
-                        >
-                            <md-outlined-icon-button ref={nextPageButtonRef} onClick={() => setCurrentPage(p => p + 1)}>
-                                <md-icon>keyboard_arrow_right</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <motion.div 
-                            whileHover={currentPage < totalPages ? { scale: 1.05 } : {}} 
-                            whileTap={currentPage < totalPages ? { scale: 0.95 } : {}}
-                        >
-                            <md-outlined-icon-button ref={lastPageButtonRef} onClick={() => setCurrentPage(totalPages)}>
-                                <md-icon>keyboard_double_arrow_right</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                    </div>
+            <DateModals
+                statusMessage={statusMessage}
+                setStatusMessage={setStatusMessage}
+                contentBoxBounds={contentBoxBounds}
+                modalStates={modalStates}
+                modalHandlers={modalHandlers}
+                scanToDelete={scanToDelete}
+                scanToEdit={scanToEdit}
+                allCategories={allCategories}
+                selectedCategories={selectedCategories}
+                selectedCategory={selectedCategory}
+                date={date}
+            />
 
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-[var(--theme-text)]">
-                            Results: {totalScans}
-                        </span>
-                        <div className="relative">
-                            <select
-                                value={sortOption}
-                                onChange={(e) => {
-                                    setSortOption(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                                onClick={() => setIsSortOpen(!isSortOpen)}
-                                onBlur={() => setIsSortOpen(false)}
-                                className="appearance-none p-2 pl-3 pr-8 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="date-desc">Newest</option>
-                                <option value="date-asc">Oldest</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                                <md-icon>{isSortOpen ? 'unfold_less' : 'unfold_more'}</md-icon>
-                            </div>
-                        </div>
-                        <div className="relative">
-                            <select
-                                value={scansPerPage}
-                                onChange={(e) => {
-                                    setScansPerPage(Number(e.target.value));
-                                    setCurrentPage(1);
-                                }}
-                                onClick={() => setIsScansPerPageOpen(!isScansPerPageOpen)}
-                                onBlur={() => setIsScansPerPageOpen(false)}
-                                className="appearance-none p-2 pl-3 pr-8 rounded-lg border border-[var(--theme-outline)] bg-[var(--theme-surface-solid)] text-[var(--theme-text)] focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary)]"
-                            >
-                                <option value="5">5</option>
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                                <md-icon>{isScansPerPageOpen ? 'unfold_less' : 'unfold_more'}</md-icon>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-        {createPortal(
-            <AnimatePresence>
-                {isCategoryFilterModalOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsCategoryFilterModalOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <CategoryFilterPage
-                                onClose={() => setIsCategoryFilterModalOpen(false)}
-                                allCategories={allCategories}
-                                selectedCategories={selectedCategories}
-                                setSelectedCategories={setSelectedCategories}
-                                onBack={() => {
-                                    setIsCategoryFilterModalOpen(false);
-                                }}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isDownloadMenuOpen && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsDownloadMenuOpen(false)}
-                    >
-                        <motion.div
-                            className="absolute"
-                            style={{ top: `${downloadIconPosition.top}px`, left: `${downloadIconPosition.left}px` }}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <md-outlined-icon-button onClick={() => setIsDownloadMenuOpen(false)}>
-                                <md-icon>download</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <motion.div
-                            style={{ top: `${downloadMenuPosition.top}px`, left: `${downloadMenuPosition.left}px` }}
-                            className="absolute w-56 bg-[var(--theme-card-bg)] border border-[var(--theme-outline)] rounded-md shadow-lg z-50"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.1 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <ul className="py-1">
-                                <li>
-                                    <a href="#" onClick={(e) => { e.preventDefault(); openExportModal('pdf'); setIsDownloadMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                                        <md-icon>picture_as_pdf</md-icon>
-                                        <span>Export to PDF</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="#" onClick={(e) => { e.preventDefault(); openExportModal('csv'); setIsDownloadMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                                        <md-icon>csv</md-icon>
-                                        <span>Export to CSV</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isDeleteScanModalOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsDeleteScanModalOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <DeleteScanPage
-                                statusMessage={statusMessage}
-                                setStatusMessage={setStatusMessage}
-                                onClose={() => setIsDeleteScanModalOpen(false)}
-                                scanTimestamp={scanToDelete}
-                                onSuccess={handleDeleteScanSuccess}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isNewScanModalOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsNewScanModalOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <NewScanPage
-                                statusMessage={statusMessage}
-                                setStatusMessage={setStatusMessage}
-                                onClose={() => setIsNewScanModalOpen(false)}
-                                onSuccess={handleNewScanSuccess}
-                                mode="date"
-                                prefilledDate={date}
-                                onCategorySelect={openCategorySelectionModal}
-                                allCategories={allCategories}
-                                selectedCategory={selectedCategory}
-                                setSelectedCategory={setSelectedCategory}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isCategorySelectionOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsCategorySelectionOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <CategorySelectionPage
-                                allCategories={allCategories}
-                                selectedCategory={selectedCategory}
-                                setSelectedCategory={setSelectedCategory}
-                                onClose={() => setIsCategorySelectionOpen(false)}
-                                onBack={() => {
-                                    setIsCategorySelectionOpen(false);
-                                    setIsNewScanModalOpen(true);
-                                }}
-                                showBackButton={true}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isEditScanModalOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsEditScanModalOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <EditScanPage
-                                statusMessage={statusMessage}
-                                setStatusMessage={setStatusMessage}
-                                onClose={() => setIsEditScanModalOpen(false)}
-                                scan={scanToEdit}
-                                onUpdate={handleEditScanSuccess}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isExportModalOpen && contentBoxBounds && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsExportModalOpen(false)}
-                    >
-                        <motion.div
-                            style={{
-                                position: 'fixed',
-                                top: contentBoxBounds.top + (contentBoxBounds.height * 0.15),
-                                left: contentBoxBounds.left + (contentBoxBounds.width * 0.15),
-                                width: contentBoxBounds.width * 0.7,
-                                height: contentBoxBounds.height * 0.7,
-                            }}
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            transition={{ duration: 0.2 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <ExportOptionsPage
-                                statusMessage={statusMessage}
-                                setStatusMessage={setStatusMessage}
-                                onClose={() => setIsExportModalOpen(false)}
-                                onExport={handleExport}
-                                title={exportTitle}
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-        {createPortal(
-            <AnimatePresence>
-                {isOptionsMenuOpen && (
-                    <motion.div
-                        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setIsOptionsMenuOpen(false)}
-                    >
-                        <motion.div
-                            className="absolute"
-                            style={{ top: `${optionsIconPosition.top}px`, left: `${optionsIconPosition.left}px` }}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <md-outlined-icon-button onClick={() => setIsOptionsMenuOpen(false)}>
-                                <md-icon>more_vert</md-icon>
-                            </md-outlined-icon-button>
-                        </motion.div>
-                        <motion.div
-                            style={{ top: `${optionsMenuPosition.top}px`, left: `${optionsMenuPosition.left}px` }}
-                            className="absolute w-56 bg-[var(--theme-card-bg)] border border-[var(--theme-outline)] rounded-md shadow-lg z-50"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.1 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <ul className="py-1">
-                                <li>
-                                    <a href="#" onClick={(e) => { e.preventDefault(); openNewScanModal(); setIsOptionsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--theme-text)] hover:bg-[var(--theme-highlight)]">
-                                        <md-icon>add_circle</md-icon>
-                                        <span>Create New Scan</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>,
-            document.getElementById('portal-root')
-        )}
-    </>
+            <DateMenus
+                isDownloadMenuOpen={isDownloadMenuOpen}
+                closeDownloadMenu={() => setIsDownloadMenuOpen(false)}
+                downloadIconPosition={downloadIconPosition}
+                downloadMenuPosition={downloadMenuPosition}
+                openExportPDFModal={() => { openExportModal('pdf'); setIsDownloadMenuOpen(false); }}
+                openExportCSVModal={() => { openExportModal('csv'); setIsDownloadMenuOpen(false); }}
+                isOptionsMenuOpen={isOptionsMenuOpen}
+                closeOptionsMenu={() => setIsOptionsMenuOpen(false)}
+                optionsIconPosition={optionsIconPosition}
+                optionsMenuPosition={optionsMenuPosition}
+                openNewScanModal={openNewScanModal}
+            />
+        </>
     );
 };
 
