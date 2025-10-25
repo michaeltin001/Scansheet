@@ -116,6 +116,9 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
 
     const handleNewScanSuccess = () => {
         setIsNewScanModalOpen(false);
+        setTimeout(() => {
+            setStatusMessage("Successfully created scan.");
+        }, 500);
     };
 
     let shadowClass = '';

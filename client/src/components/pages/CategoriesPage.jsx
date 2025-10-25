@@ -270,6 +270,9 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         setIsEditModalOpen(false);
         setCategoryToEdit(null);
         fetchCategories();
+        setTimeout(() => {
+            setStatusMessage("Successfully updated category.");
+        }, 500);
     };
 
     const handleDeleteSuccess = () => {
@@ -280,8 +283,15 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
             deletedCodes.forEach(code => newSelected.delete(code));
             return newSelected;
         });
+        const count = categoriesToDelete.length;
+        const message = count > 1
+            ? `Successfully deleted ${count} categories.`
+            : "Successfully deleted category.";
         setCategoriesToDelete([]);
         fetchCategories();
+        setTimeout(() => {
+            setStatusMessage(message);
+        }, 500);
     };
 
     const handleDeleteClick = () => {
@@ -331,6 +341,9 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
     const handleNewCategorySuccess = () => {
         setIsNewCategoryModalOpen(false);
         fetchCategories();
+        setTimeout(() => {
+            setStatusMessage("Successfully created category.");
+        }, 500);
     };
 
     const handleUploadClick = () => {

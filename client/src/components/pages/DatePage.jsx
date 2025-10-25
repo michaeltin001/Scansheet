@@ -423,7 +423,9 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         setIsDeleteScanModalOpen(false);
         setScanToDelete(null);
         fetchScans();
-        setStatusMessage("Successfully deleted scan.");
+        setTimeout(() => {
+            setStatusMessage("Successfully deleted scan.");
+        }, 500);
     };
 
     const openNewScanModal = () => {
@@ -434,6 +436,9 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
     const handleNewScanSuccess = () => {
         setIsNewScanModalOpen(false);
         fetchScans();
+        setTimeout(() => {
+            setStatusMessage("Successfully created scan.");
+        }, 500);
     };
 
     const openCategorySelectionModal = () => {
@@ -451,7 +456,9 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         setIsEditScanModalOpen(false);
         setScanToEdit(null);
         fetchScans();
-        setStatusMessage("Successfully updated scan.");
+        setTimeout(() => {
+            setStatusMessage("Successfully updated scan.");
+        }, 500);
     };
 
     const openExportModal = (type) => {

@@ -448,17 +448,22 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         setIsDeleteScanModalOpen(false);
         setScanToDelete(null);
         fetchScans();
-        setStatusMessage("Successfully deleted scan.");
+        setTimeout(() => {
+            setStatusMessage("Successfully deleted scan.");
+        }, 500);
     };
 
     const handleDeleteSuccess = () => {
         setIsDeleteEntryModalOpen(false);
-        navigate('/entries');
+        navigate('/entries', { state: { message: "Successfully deleted entry." } });
     };
 
     const handleEditSuccess = () => {
         setIsEditEntryModalOpen(false);
         fetchEntry();
+        setTimeout(() => {
+            setStatusMessage("Successfully updated entry.");
+        }, 500);
     };
 
     const handleRestoreDefaultDates = () => {
@@ -482,6 +487,9 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         setIsNewScanModalOpen(false);
         fetchScans();
         fetchDateRange();
+        setTimeout(() => {
+            setStatusMessage(`Successfully created scan for ${entry.name}.`);
+        }, 500);
     };
 
     const openCategorySelectionModal = () => {
@@ -500,7 +508,9 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         setScanToEdit(null);
         fetchScans();
         fetchDateRange();
-        setStatusMessage("Successfully updated scan.");
+        setTimeout(() => {
+            setStatusMessage("Successfully updated scan.");
+        }, 500);
     };
 
     const openDeleteEntryModal = () => {

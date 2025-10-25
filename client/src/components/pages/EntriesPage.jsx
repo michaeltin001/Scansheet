@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import EntriesToolbar from './EntriesPage/EntriesToolbar';
 import EntriesList from './EntriesPage/EntriesList';
@@ -52,6 +52,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
     const { isOverflowingTop, isOverflowingBottom } = useOverflow(scrollContainerRef, allEntries);
     const navigate = useNavigate();
+    const location = useLocation();
     const totalPages = Math.ceil(totalEntries / entriesPerPage);
 
     const selectedCodesOnCurrentPage = useMemo(() => {
@@ -141,6 +142,13 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             window.removeEventListener('scroll', handleReposition, true);
         };
     }, [isDownloadMenuOpen]);
+
+    useEffect(() => {
+        if (location.state?.message) {
+            setStatusMessage(location.state.message);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location, setStatusMessage, navigate]);
 
     const fetchEntries = async () => {
         let sortBy = 'name';
@@ -280,6 +288,9 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         setIsEditModalOpen(false);
         setEntryToEdit(null);
         fetchEntries();
+        setTimeout(() => {
+            setStatusMessage("Successfully updated entry.");
+        }, 500);
     };
 
     const handleDeleteSuccess = () => {
@@ -290,8 +301,15 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             deletedCodes.forEach(code => newSelected.delete(code));
             return newSelected;
         });
+        const count = entriesToDelete.length;
+        const message = count > 1
+            ? `Successfully deleted ${count} entries.`
+            : "Successfully deleted entry.";
         setEntriesToDelete([]);
         fetchEntries();
+        setTimeout(() => {
+            setStatusMessage(message);
+        }, 500);
     };
 
     const handleDeleteClick = () => {
@@ -352,6 +370,9 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     const handleNewEntrySuccess = () => {
         setIsNewEntryModalOpen(false);
         fetchEntries();
+        setTimeout(() => {
+            setStatusMessage("Successfully created entry.");
+        }, 500);
     };
 
     const handleUploadClick = () => {

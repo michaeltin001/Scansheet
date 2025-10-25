@@ -347,8 +347,15 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
             deletedDates.forEach(date => newSelected.delete(date));
             return newSelected;
         });
+        const count = datesToDelete.length;
+        const message = count > 1
+            ? `Successfully deleted scans for ${count} dates.`
+            : "Successfully deleted scans for 1 date.";
         setDatesToDelete([]);
         fetchDates();
+        setTimeout(() => {
+            setStatusMessage(message);
+        }, 500);
     };
 
     const handleDeleteClick = () => {
@@ -392,6 +399,9 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
         setIsNewScanModalOpen(false);
         fetchDateRange();
         fetchDates();
+        setTimeout(() => {
+            setStatusMessage("Successfully created scan.");
+        }, 500);
     };
 
     const openCategorySelectionModal = () => {
