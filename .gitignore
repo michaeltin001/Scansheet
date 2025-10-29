@@ -33,4 +33,5 @@ dist-ssr
 
 # Server specific
 /server/database.sqlite
+/server/test_database.sqlite
 /server/uploads/

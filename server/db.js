@@ -1,6 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
-const DBSOURCE = "database.sqlite";
 const { v4: uuidv4 } = require('uuid');
+
+const isTestEnv = process.env.NODE_ENV === 'test';
+const DBSOURCE = isTestEnv ? "test_database.sqlite" : "database.sqlite";
 
 const db = new sqlite3.Database(DBSOURCE, (err) => {
     if (err) {
