@@ -22,6 +22,8 @@ const HomeModals = ({
     contentBoxBounds,
     openCategorySelectionModal,
     handleNewScanSuccess,
+    openPreviousScannerModal,
+    openPreviousNewScanModal
 }) => {
     return createPortal(
         <>
@@ -45,9 +47,9 @@ const HomeModals = ({
                     onBack={() => {
                         closeCategorySelectionModal();
                         if (categorySelectionSource === 'ScannerPage') {
-                            setIsScannerModalOpen(true);
+                            openPreviousScannerModal();
                         } else if (categorySelectionSource === 'NewScanPage') {
-                            setIsNewScanModalOpen(true);
+                            openPreviousNewScanModal();
                         }
                     }}
                     showBackButton={true}

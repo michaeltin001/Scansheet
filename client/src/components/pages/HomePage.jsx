@@ -78,25 +78,38 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
         setIsCategorySelectionOpen(false);
     }
 
-    const openScannerModal = () => {
+    const handleOpenScannerModal = () => {
         updateBounds();
         setIsScannerModalOpen(true);
     };
 
-    const openNewScanModal = () => {
+    const handleCloseScannerModal = () => {
+        setIsScannerModalOpen(false);
+    };
+
+    const handleOpenNewScanModal = () => {
         updateBounds();
         setIsNewScanModalOpen(true);
     };
 
-    const openCategorySelectionModal = (source) => {
-        setCategorySelectionSource(source);
+    const handleCloseNewScanModal = () => {
         setIsNewScanModalOpen(false);
-        setIsScannerModalOpen(false);
+    };
+
+    const handleOpenCategorySelectionModal = (source) => {
+        setCategorySelectionSource(source);
+        if (source === 'ScannerPage') setIsScannerModalOpen(false);
+        if (source === 'NewScanPage') setIsNewScanModalOpen(false);
+        updateBounds();
         setIsCategorySelectionOpen(true);
     };
 
+    const handleCloseCategorySelectionModal = () => {
+        setIsCategorySelectionOpen(false);
+    };
+
     const handleNewScanSuccess = () => {
-        setIsNewScanModalOpen(false);
+        handleCloseNewScanModal();
         setTimeout(() => {
             setStatusMessage("Successfully created scan.");
         }, 500);
@@ -135,8 +148,8 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
                         className={`flex-1 overflow-y-auto ${shadowClass}`}
                     >
                         <HomeInfoCardGrid
-                            openScannerModal={openScannerModal}
-                            openNewScanModal={openNewScanModal}
+                            openScannerModal={handleOpenScannerModal}
+                            openNewScanModal={handleOpenNewScanModal}
                             today={today}
                         />
                     </div>
@@ -148,20 +161,20 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
                 statusMessage={statusMessage}
                 setStatusMessage={setStatusMessage}
                 isScannerModalOpen={isScannerModalOpen}
-                closeScannerModal={() => setIsScannerModalOpen(false)}
+                closeScannerModal={handleCloseScannerModal}
                 isNewScanModalOpen={isNewScanModalOpen}
-                closeNewScanModal={() => setIsNewScanModalOpen(false)}
+                closeNewScanModal={handleCloseNewScanModal}
                 isCategorySelectionOpen={isCategorySelectionOpen}
-                closeCategorySelectionModal={() => setIsCategorySelectionOpen(false)}
+                closeCategorySelectionModal={handleCloseCategorySelectionModal}
                 categorySelectionSource={categorySelectionSource}
                 allCategories={allCategories}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
                 contentBoxBounds={contentBoxBounds}
-                openCategorySelectionModal={openCategorySelectionModal}
+                openCategorySelectionModal={handleOpenCategorySelectionModal}
                 handleNewScanSuccess={handleNewScanSuccess}
-                setIsScannerModalOpen={setIsScannerModalOpen}
-                setIsNewScanModalOpen={setIsNewScanModalOpen}
+                openPreviousScannerModal={handleOpenScannerModal}
+                openPreviousNewScanModal={handleOpenNewScanModal}
             />
         </>
     );

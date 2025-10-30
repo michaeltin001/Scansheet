@@ -19,7 +19,7 @@ const SettingsPage = ({ statusMessage, setStatusMessage }) => {
     };
 
     const handleGitHubClick = () => {
-        window.open('https://www.google.com', '_blank', 'noopener,noreferrer');
+        window.open('https://github.com/michaeltin001/Scansheet', '_blank', 'noopener,noreferrer');
     };
 
     let shadowClass = '';
