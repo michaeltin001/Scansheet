@@ -46,7 +46,7 @@ const formatTime24Hour = (date) => {
 app.use(cors());
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, 'client', 'dist')));
+app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
 app.get('/api/entries', (req, res) => {
     const { sortBy = 'name', order = 'ASC', search = '' } = req.query;
@@ -2242,7 +2242,7 @@ app.post('/api/dates/export-pdf', (req, res) => {
 });
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
 
 if (process.env.NODE_ENV !== 'test') {
