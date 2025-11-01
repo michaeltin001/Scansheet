@@ -33,7 +33,7 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
                 const categoriesData = await categoriesResponse.json();
                 if (categoriesResponse.ok) {
                     setAllCategories(categoriesData.data);
-                    if (!selectedCategory) {
+                    if (!localStorage.getItem('selectedCategory')) {
                         const generalCategory = categoriesData.data.find(c => c.name === 'General');
                         if (generalCategory) {
                             setSelectedCategory(generalCategory.code);
@@ -46,6 +46,10 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
         };
         fetchInitialData();
     }, []);
+
+    useEffect(() => {
+        localStorage.setItem('selectedCategory', selectedCategory);
+    }, [selectedCategory]);
 
     useEffect(() => {
         const handleEscKey = (event) => {
