@@ -1,6 +1,6 @@
 # Scansheet
 
-**Scansheet is a modern, lightweight, and user-friendly application that keeps track of attendance records through a QR code-based system. The application has the following features:**
+**Scansheet is a simple and intuitive application that keeps track of attendance records through a QR code-based system. The application has the following features:**
 * Create, edit, and delete entries and categories.
 * Export a user-defined selection of entries and categories to CSV and PDF.
 * Fetch all attendance records corresponding to an individual entry.
