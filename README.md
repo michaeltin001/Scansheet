@@ -91,8 +91,6 @@ The Entries Page is where you manage all scannable items, from creating new entr
     * **Create New Entry:** Opens a modal to create a single new entry by typing its name.
     * **Import from CSV:** Allows you to upload a CSV file to batch-create multiple entries at once.
 
-#### Per-Entry Actions
-
 Each item in the list has its own set of controls:
 
 * **Checkbox:** Selects or deselects a single entry.
@@ -101,14 +99,6 @@ Each item in the list has its own set of controls:
 * **Copy Code** (`content_copy` icon): Copies the entry's unique ID code (UUID) to your clipboard.
 * **View QR Code** (`qr_code_2` icon): Opens a modal displaying the entry's scannable QR code, with options to download it as a PNG, print a badge, or generate a new code.
 * **Delete** (`delete` icon): Opens a modal to delete only that specific entry.
-
-#### Pagination and Sorting
-
-Controls at the bottom of the page help navigate the list:
-
-* **Page Navigation:** Buttons allow you to jump to the first, previous, next, or last page of entries.
-* **Sort By:** A dropdown menu sorts the list by name (A-Z or Z-A) or by creation date (Newest or Oldest).
-* **Results per Page:** A dropdown menu changes the number of entries displayed per page (options: 5, 10, 25, 50, 100).
 
 ### Entry Page
 
@@ -130,20 +120,10 @@ The Entry Page displays the complete scan history for a specific entry, allowing
     * **View QR Code:** Opens a modal displaying the entry's scannable QR code, with options to download it as a PNG, print a badge, or generate a new code.
     * **Delete Entry:** Opens a modal to permanently delete this entry and its entire scan history.
 
-#### Per-Scan Actions
-
 Each scan record in the list has its own set of controls:
 
 * **Edit** (`edit` icon): Opens a modal to change the date and time of the individual scan record.
 * **Delete** (`delete` icon): Opens a modal to delete only that specific scan record.
-
-#### Pagination and Sorting
-
-Controls at the bottom of the page help navigate the scan list:
-
-* **Page Navigation:** Buttons allow you to jump to the first, previous, next, or last page of scans.
-* **Sort By:** A dropdown menu sorts the scan list by date (Newest or Oldest).
-* **Results per Page:** A dropdown menu changes the number of scans displayed per page (options: 5, 10, 25, 50, 100).
 
 ### Categories Page
 
@@ -159,8 +139,6 @@ The Categories Page is where you create and manage all the categories that scans
 * **Add Menu** (`add` icon): Opens a menu for adding new categories.
     * **Create New Category:** Opens a modal to create a single new category by typing its name.
     * **Import from CSV:** Allows you to upload a CSV file to batch-create multiple categories at once.
-
-#### Per-Category Actions
 
 Each item in the list has its own set of controls (note: the default "General" category cannot be selected, edited, or deleted).
 
@@ -186,8 +164,6 @@ The Dates Page lists all unique dates that have at least one scan record, allowi
 * **Add Menu** (`add` icon): Opens a menu for adding new scans.
     * **Create New Scan:** Opens a modal to manually create a new scan record, allowing you to specify the code, category, date, and time.
 
-#### Per-Date Actions
-
 Each date in the list has its own set of controls:
 
 * **Checkbox:** Selects or deselects a single date.
@@ -207,8 +183,6 @@ The Date Page displays all individual scan records for a specific date, allowing
     * **Reset Filters** (`history` icon): Resets the category filter to include all categories.
 * **Options Menu** (`more_vert` icon): Opens a menu with additional actions.
     * **Create New Scan:** Opens a modal to manually add a new scan record, pre-filling the date for this page.
-
-#### Per-Scan Actions
 
 Each scan record in the list has its own set of controls:
 
