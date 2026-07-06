@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 const isTestEnv = process.env.NODE_ENV === 'test';
 const DBSOURCE = isTestEnv ? "test_database.sqlite" : "database.sqlite";

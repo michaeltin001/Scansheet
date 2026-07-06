@@ -9,7 +9,7 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const util = require('util');
 const PDFDocument = require('pdfkit');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 const app = express();
 const PORT = 3000;
