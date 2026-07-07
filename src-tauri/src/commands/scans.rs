@@ -135,6 +135,55 @@ pub fn delete_scans_by_date(state: State<'_, AppState>, date: String) -> Result<
 }
 
 #[tauri::command]
+pub fn get_scans_by_dates(
+    state: State<'_, AppState>,
+    dates: Vec<String>,
+    order: Option<String>,
+) -> Result<Vec<Scan>, String> {
+    if dates.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let ord = order.unwrap_or_else(|| "DESC".to_string());
+    if ord.to_uppercase() != "ASC" && ord.to_uppercase() != "DESC" {
+        return Err("Invalid order parameter.".to_string());
+    }
+
+    let placeholders = dates.iter().map(|_| "?").collect::<Vec<&str>>().join(",");
+    let sql = format!(
+        "SELECT s.date, e.name as entry_name, c.name as category_name \
+         FROM scans s \
+         JOIN entries e ON s.code = e.code \
+         JOIN categories c ON s.category_code = c.code \
+         WHERE s.scan_date IN ({}) \
+         ORDER BY s.date {}",
+        placeholders, ord
+    );
+
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    
+    let params: Vec<&dyn rusqlite::ToSql> = dates.iter().map(|d| d as &dyn rusqlite::ToSql).collect();
+    let scan_iter = stmt
+        .query_map(params.as_slice(), |row| {
+            Ok(Scan {
+                date: row.get(0)?,
+                entry_name: row.get(1)?,
+                category_name: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut data = Vec::new();
+    for scan in scan_iter {
+        data.push(scan.map_err(|e| e.to_string())?);
+    }
+
+    Ok(data)
+}
+
+#[tauri::command]
 pub fn bulk_delete_scans_by_dates(state: State<'_, AppState>, dates: Vec<String>) -> Result<String, String> {
     if dates.is_empty() {
         return Err("Invalid request. No dates provided.".to_string());

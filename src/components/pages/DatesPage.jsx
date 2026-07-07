@@ -408,43 +408,38 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/dates/export-csv', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dates: datesToExport, order }),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+
+            const filePath = await save({
+                defaultPath: 'dates_export.csv',
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-
-                const disposition = response.headers.get('content-disposition');
-                let filename = 'dates.csv';
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                const count = datesToExport.length;
-                setStatusMessage(`Successfully exported ${count} dates.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not export dates to CSV.');
+            if (!filePath) {
+                return;
             }
+
+            const scans = await invoke('get_scans_by_dates', { dates: datesToExport, order });
+            
+            let csvContent = '"Name","Date","Time","Category"\n';
+            scans.forEach(scan => {
+                const d = new Date(scan.date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                csvContent += `"${scan.entryName}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.categoryName}"\n`;
+            });
+
+            await writeFile(filePath, new TextEncoder().encode(csvContent));
+            setStatusMessage(`Successfully exported scans for ${datesToExport.length} dates.`);
         } catch (error) {
-            setStatusMessage('Could not export dates to CSV.');
+            setStatusMessage('Could not export dates to CSV: ' + error);
         }
     };
 
@@ -456,43 +451,49 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/dates/export-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dates: datesToExport, order }),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const { jsPDF } = await import('jspdf');
+            await import('jspdf-autotable');
+
+            const filePath = await save({
+                defaultPath: 'dates_export.pdf',
+                filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-
-                const disposition = response.headers.get('content-disposition');
-                let filename = 'dates.pdf';
-                 if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                const count = datesToExport.length;
-                setStatusMessage(`Successfully exported ${count} dates.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not export dates to PDF.');
+            if (!filePath) {
+                return;
             }
+
+            const scans = await invoke('get_scans_by_dates', { dates: datesToExport, order });
+            
+            const doc = new jsPDF();
+            
+            const tableData = scans.map(scan => {
+                const d = new Date(scan.date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                return [scan.entryName, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.categoryName];
+            });
+
+            doc.autoTable({
+                head: [['Name', 'Date', 'Time', 'Category']],
+                body: tableData,
+                margin: { top: 30 }
+            });
+
+            const arrayBuffer = doc.output('arraybuffer');
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+            
+            setStatusMessage(`Successfully exported scans for ${datesToExport.length} dates.`);
         } catch (error) {
-            setStatusMessage('Could not export dates to PDF.');
+            setStatusMessage('Could not export dates to PDF: ' + error);
         }
     };
 

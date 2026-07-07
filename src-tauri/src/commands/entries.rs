@@ -3,7 +3,21 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
+use qrcode::QrCode;
+use image::{Luma, DynamicImage};
+use std::io::Cursor;
+use base64::{Engine as _, engine::general_purpose};
 
+fn generate_qr_code_base64(data: &str) -> Result<String, String> {
+    let code = QrCode::new(data).map_err(|e| format!("Failed to create QR code: {}", e))?;
+    let image = code.render::<Luma<u8>>().build();
+    let dynamic_image = DynamicImage::ImageLuma8(image);
+    let resized = dynamic_image.resize_exact(500, 500, image::imageops::FilterType::Nearest);
+    let mut cursor = Cursor::new(Vec::new());
+    resized.write_to(&mut cursor, image::ImageFormat::Png).map_err(|e| format!("Failed to write image: {}", e))?;
+    let base64_str = general_purpose::STANDARD.encode(cursor.into_inner());
+    Ok(format!("data:image/png;base64,{}", base64_str))
+}
 #[derive(Serialize, Deserialize)]
 pub struct Entry {
     pub code: String,
@@ -112,7 +126,7 @@ pub fn create_entry(state: State<'_, AppState>, name: String) -> Result<SingleEn
 
     let code = Uuid::new_v4().to_string();
     let current_date = chrono::Utc::now().timestamp_millis();
-    let code_png = ""; // FIX: Generate Base64 QR code image using qrcode crate
+    let code_png = generate_qr_code_base64(&code)?;
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute(
@@ -180,5 +194,117 @@ pub fn bulk_delete_entries(state: State<'_, AppState>, codes: Vec<String>) -> Re
     Ok("Successfully deleted entries.".to_string())
 }
 
-// FIX: Implement update_entry_qrcode command (PUT /api/entry/qrcode/:code)
-// FIX: Implement import/export commands (CSV/PDF/Print/Image Download) for entries
+#[tauri::command]
+pub fn update_entry_qrcode(state: State<'_, AppState>, code: String) -> Result<SingleEntryResponse, String> {
+    let new_code = Uuid::new_v4().to_string();
+    let new_code_png = generate_qr_code_base64(&new_code)?;
+
+    let mut db = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+
+    tx.execute(
+        "UPDATE entries SET code = ?1, code_png = ?2 WHERE code = ?3",
+        params![new_code, new_code_png, code],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.execute(
+        "UPDATE scans SET code = ?1 WHERE code = ?2",
+        params![new_code, code],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    let mut stmt = db
+        .prepare("SELECT code, name, code_png, date FROM entries WHERE code = ?")
+        .map_err(|e| e.to_string())?;
+    
+    let entry = stmt
+        .query_row(params![new_code], |row| {
+            Ok(Entry {
+                code: row.get(0)?,
+                name: row.get(1)?,
+                code_png: row.get(2)?,
+                date: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    Ok(SingleEntryResponse {
+        message: "Successfully updated entry.".to_string(),
+        data: entry,
+    })
+}
+
+#[tauri::command]
+pub fn get_entries_by_codes(state: State<'_, AppState>, codes: Vec<String>, sort_by: String, order: String) -> Result<Vec<Entry>, String> {
+    if codes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let allowed_sort_by = ["name", "date"];
+    let allowed_order = ["ASC", "DESC"];
+
+    if !allowed_sort_by.contains(&sort_by.as_str()) || !allowed_order.contains(&order.as_str()) {
+        return Err("Invalid sort parameters.".to_string());
+    }
+
+    let placeholders = codes.iter().map(|_| "?").collect::<Vec<&str>>().join(",");
+    let sql = format!("SELECT code, name, code_png, date FROM entries WHERE code IN ({}) ORDER BY {} {}", placeholders, sort_by, order);
+
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    
+    let params: Vec<&dyn rusqlite::ToSql> = codes.iter().map(|c| c as &dyn rusqlite::ToSql).collect();
+    let entry_iter = stmt
+        .query_map(params.as_slice(), |row| {
+            Ok(Entry {
+                code: row.get(0)?,
+                name: row.get(1)?,
+                code_png: row.get(2)?,
+                date: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut data = Vec::new();
+    for entry in entry_iter {
+        data.push(entry.map_err(|e| e.to_string())?);
+    }
+
+    Ok(data)
+}
+
+#[tauri::command]
+pub fn import_csv(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    let mut rdr = csv::Reader::from_path(path).map_err(|e| format!("Failed to read CSV: {}", e))?;
+    
+    let mut db = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+    
+    let mut count = 0;
+    
+    for result in rdr.records() {
+        let record = result.map_err(|e| e.to_string())?;
+        if record.len() < 1 { continue; }
+        
+        let name = &record[0];
+        if name.trim().is_empty() { continue; }
+
+        let code = Uuid::new_v4().to_string();
+        let current_date = chrono::Utc::now().timestamp_millis();
+        let code_png = generate_qr_code_base64(&code)?;
+
+        tx.execute(
+            "INSERT INTO entries (code, code_png, name, date) VALUES (?1, ?2, ?3, ?4)",
+            params![code, code_png, name, current_date],
+        ).map_err(|e| e.to_string())?;
+        
+        count += 1;
+    }
+    
+    tx.commit().map_err(|e| e.to_string())?;
+    
+    Ok(format!("Successfully imported {} entries.", count))
+}

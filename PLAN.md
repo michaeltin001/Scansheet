@@ -221,22 +221,22 @@ const data = await invoke('get_entries', { search, sortBy, order });
 
 ---
 
-### Phase 5: Complex Features Implementation
+### Phase 5: Complex Features Implementation ✅
 
 This is the most technically intensive phase, dealing with files, images, and PDFs.
 
-**1. QR Code Generation & Resizing**
+**1. QR Code Generation & Resizing** ✅
 In `server.js`, you use `qrcode.toDataURL()` and `sharp`.
 In Rust, use the `qrcode` crate to generate a bitmap, the `image` crate to resize it to 500x500 (replicating your `sharp` logic), and convert it to a Base64 string to send back to React via `invoke`.
 
-**2. CSV Import/Export Workflow**
+**2. CSV Import/Export Workflow** ✅
 Currently, your frontend uploads a file via `multer` as FormData.
 
 * **Tauri Way:** Use `@tauri-apps/plugin-dialog`. The user clicks "Import CSV" in React, which triggers the Tauri native file picker.
 * React gets the absolute file path (e.g., `C:\users\data.csv`) and sends *just the path* to Rust via `invoke('import_csv', { path })`.
 * Rust reads the file directly from the user's disk using the `csv` crate and inserts it into SQLite.
 
-**3. PDF Generation (The Heaviest Lift)**
+**3. PDF Generation (The Heaviest Lift)** ✅
 You currently rely heavily on `PDFDocument` (pdfkit) with exact coordinate plotting (`doc.moveTo`, `doc.text(..., nameX, y + 6)`).
 
 * Alternatively, and highly recommended to save massive amounts of time: **Generate the PDFs on the frontend.** Since Tauri provides a full Chromium/WebKit webview, you can use a library like `jspdf` or `html2pdf.js` in your React code to construct the PDFs. Rendering PDFs directly from HTML/CSS in the frontend is far faster than rebuilding coordinate-based grids in Rust.
@@ -244,7 +244,19 @@ You currently rely heavily on `PDFDocument` (pdfkit) with exact coordinate plott
 
 ---
 
-### Phase 6: Testing, Polish, & Building
+### Phase 6: Restoring Missed Functionality
+
+During the initial pass of Phase 5, several advanced endpoint features and QR printing workflows were missed due to their placement in auxiliary components (`DatePage.jsx`, `ExportOptionsPage.jsx`, `EntryQRCodePage.jsx`). This phase rectifies those gaps.
+
+**1. Date Page Export Fidelity**
+The singular Date Page requires options to natively pick a "comparison CSV" to diff against missing individuals, as well as options to remove duplicates and alphabetize the roster. This logic will be handled natively by `src-tauri` using CTE SQL cross-referencing and the `csv` crate.
+
+**2. QR Code Badges and Prints**
+The system must generate PDF badges holding specific QR codes. Using `jspdf`, the frontend will embed the Base64 QR png strings onto PDF documents natively and save them to disk. Additionally, regenerating new QR codes (`update_entry_qrcode`) and downloading native `.png` files must be hooked up to their respective IPC bindings.
+
+---
+
+### Phase 7: Testing, Polish, & Building
 
 **1. Development Testing**
 Run `npm run tauri dev`. This launches your React frontend inside the native desktop window. Test all CRUD operations, file pickers, and database interactions.

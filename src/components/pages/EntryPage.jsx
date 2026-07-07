@@ -316,55 +316,55 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
         const requestBody = {
+            code,
             order,
-            startDate,
-            endDate,
+            page: 1,
+            limit: 9999999,
         };
 
+        if (startDate) requestBody.startDate = startDate;
+        if (endDate) requestBody.endDate = endDate;
         if (selectedDays.size < 7) {
             requestBody.days = Array.from(selectedDays).join(',');
         }
-
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/entry/export-csv/${code}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+
+            const filePath = await save({
+                defaultPath: `${entry.name.replace(/\s+/g, '_')}_${entry.code}.csv`,
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-
-                const disposition = response.headers.get('content-disposition');
-                let filename = `${entry.name.replace(/\s+/g, '_')}_${entry.code}.csv`;
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
-                
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                setStatusMessage(`Successfully exported scans.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not download scans.');
+            if (!filePath) {
+                setIsDownloadMenuOpen(false);
+                return;
             }
+
+            const response = await invoke('get_entry_scans', requestBody);
+            const scans = response.data;
+            
+            let csvContent = '"Name","Date","Time","Category"\n';
+            scans.forEach(scan => {
+                const d = new Date(scan.date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                csvContent += `"${entry.name}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.categoryName}"\n`;
+            });
+
+            await writeFile(filePath, new TextEncoder().encode(csvContent));
+            setStatusMessage(`Successfully exported scans.`);
         } catch (error) {
-            setStatusMessage('Could not download scans.');
+            setStatusMessage('Could not download scans: ' + error);
         } finally {
             setIsDownloadMenuOpen(false);
         }
@@ -374,55 +374,66 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
         const requestBody = {
+            code,
             order,
-            startDate,
-            endDate,
+            page: 1,
+            limit: 9999999,
         };
 
+        if (startDate) requestBody.startDate = startDate;
+        if (endDate) requestBody.endDate = endDate;
         if (selectedDays.size < 7) {
             requestBody.days = Array.from(selectedDays).join(',');
         }
-
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/entry/export-pdf/${code}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const { jsPDF } = await import('jspdf');
+            await import('jspdf-autotable');
+
+            const filePath = await save({
+                defaultPath: `${entry.name.replace(/\s+/g, '_')}_${entry.code}.pdf`,
+                filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-
-                const disposition = response.headers.get('content-disposition');
-                let filename = `${entry.name.replace(/\s+/g, '_')}_${entry.code}.pdf`;
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                setStatusMessage(`Successfully generated PDF.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not generate PDF.');
+            if (!filePath) {
+                setIsDownloadMenuOpen(false);
+                return;
             }
+
+            const response = await invoke('get_entry_scans', requestBody);
+            const scans = response.data;
+            
+            const doc = new jsPDF();
+            
+            const tableData = scans.map(scan => {
+                const d = new Date(scan.date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                return [entry.name, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.categoryName];
+            });
+
+            doc.autoTable({
+                head: [['Name', 'Date', 'Time', 'Category']],
+                body: tableData,
+                margin: { top: 30 }
+            });
+
+            const arrayBuffer = doc.output('arraybuffer');
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+            
+            setStatusMessage(`Successfully generated PDF.`);
         } catch (error) {
-            setStatusMessage('Could not generate PDF.');
+            setStatusMessage('Could not generate PDF: ' + error);
         } finally {
             setIsDownloadMenuOpen(false);
         }

@@ -348,37 +348,27 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         }, 500);
     };
 
-    const handleUploadClick = () => {
-        fileInputRef.current.click();
+    const handleUploadClick = async () => {
         setIsAddMenuOpen(false);
-    };
-
-    const handleImportCSV = async (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/categories/import', {
-                method: 'POST',
-                body: formData,
+            const { open } = await import('@tauri-apps/plugin-dialog');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const selectedPath = await open({
+                multiple: false,
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
             });
-
-            const data = await response.json();
-            setStatusMessage(data.message || data.error);
-            if (response.ok) {
+            if (selectedPath) {
+                const message = await invoke('import_categories_csv', { path: selectedPath });
+                setStatusMessage(message);
                 fetchCategories();
             }
         } catch (error) {
-            setStatusMessage('Could not upload categories.');
-        } finally {
-            event.target.value = null;
+            setStatusMessage('Could not import categories: ' + error);
         }
+    };
+
+    const handleImportCSV = async (event) => {
+        // Obsolete: Replaced by native dialog in handleUploadClick
     };
 
     const handleExportCSV = async (codesToExport) => {
@@ -391,55 +381,34 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         let order = 'ASC';
 
         switch (sortOption) {
-            case 'alpha-desc':
-                order = 'DESC';
-                break;
-            case 'date-asc':
-                sortBy = 'date';
-                break;
-            case 'date-desc':
-                sortBy = 'date';
-                order = 'DESC';
-                break;
+            case 'alpha-desc': order = 'DESC'; break;
+            case 'date-asc': sortBy = 'date'; break;
+            case 'date-desc': sortBy = 'date'; order = 'DESC'; break;
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/categories/export-csv', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codes: codesToExport, sortBy, order }),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+
+            const filePath = await save({
+                defaultPath: 'categories.csv',
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                
-                const disposition = response.headers.get('content-disposition');
-                let filename = 'categories.csv';
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
+            if (!filePath) return;
 
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                const count = codesToExport.length;
-                setStatusMessage(`Successfully exported ${count} categories.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not download categories.');
-            }
+            const categories = await invoke('get_categories_by_codes', { codes: codesToExport, sortBy, order });
+            
+            let csvContent = '"Name","Code"\n';
+            categories.forEach(category => {
+                csvContent += `"${category.name}","${category.code}"\n`;
+            });
+
+            await writeFile(filePath, new TextEncoder().encode(csvContent));
+            setStatusMessage(`Successfully exported ${categories.length} categories.`);
         } catch (error) {
-            setStatusMessage('Could not download categories.');
+            setStatusMessage('Could not download categories: ' + error);
         }
     };
 
@@ -453,55 +422,57 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         let order = 'ASC';
 
         switch (sortOption) {
-            case 'alpha-desc':
-                order = 'DESC';
-                break;
-            case 'date-asc':
-                sortBy = 'date';
-                break;
-            case 'date-desc':
-                sortBy = 'date';
-                order = 'DESC';
-                break;
+            case 'alpha-desc': order = 'DESC'; break;
+            case 'date-asc': sortBy = 'date'; break;
+            case 'date-desc': sortBy = 'date'; order = 'DESC'; break;
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/categories/export-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codes: codesToExport, sortBy, order }),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const { jsPDF } = await import('jspdf');
+            await import('jspdf-autotable');
+
+            const filePath = await save({
+                defaultPath: 'categories.pdf',
+                filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                
-                const disposition = response.headers.get('content-disposition');
-                let filename = 'categories.pdf';
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
+            if (!filePath) return;
 
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                const count = codesToExport.length;
-                setStatusMessage(`Successfully exported ${count} categories.`);
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not download categories.');
-            }
+            const categories = await invoke('get_categories_by_codes', { codes: codesToExport, sortBy, order });
+            
+            const doc = new jsPDF();
+            
+            const tableData = categories.map(category => {
+                return [category.name, category.code];
+            });
+
+            doc.autoTable({
+                head: [['Name', 'Code']],
+                body: tableData,
+                margin: { top: 30 }
+            });
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const dayOfMonth = String(now.getDate()).padStart(2, '0');
+            const reportDate = `${month}/${dayOfMonth}/${year}`;
+            
+            doc.addPage();
+            doc.setFontSize(12);
+            doc.text(`Generated report on ${reportDate}.`, 14, 20);
+            doc.text(`Successfully exported ${categories.length} categories.`, 14, 30);
+            doc.text("Scansheet v1.0.0", 14, 40);
+
+            const arrayBuffer = doc.output('arraybuffer');
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+            
+            setStatusMessage(`Successfully exported ${categories.length} categories.`);
         } catch (error) {
-            setStatusMessage('Could not download categories.');
+            setStatusMessage('Could not download categories: ' + error);
         }
     };
 

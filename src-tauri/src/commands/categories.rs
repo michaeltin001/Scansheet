@@ -275,4 +275,81 @@ pub fn update_category(state: State<'_, AppState>, code: String, name: String) -
     Ok("Successfully updated category.".to_string())
 }
 
-// FIX: Implement import/export commands (CSV/PDF) for categories
+#[tauri::command]
+pub fn get_categories_by_codes(
+    state: State<'_, AppState>,
+    codes: Vec<String>,
+    sort_by: String,
+    order: String,
+) -> Result<Vec<Category>, String> {
+    if codes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let allowed_sort_by = ["name", "date"];
+    let allowed_order = ["ASC", "DESC"];
+
+    if !allowed_sort_by.contains(&sort_by.as_str()) || !allowed_order.contains(&order.as_str()) {
+        return Err("Invalid sort parameters.".to_string());
+    }
+
+    let placeholders = codes.iter().map(|_| "?").collect::<Vec<&str>>().join(",");
+    let sql = format!(
+        "SELECT name, code FROM categories WHERE code IN ({}) ORDER BY {} {}",
+        placeholders, sort_by, order
+    );
+
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    
+    let params: Vec<&dyn rusqlite::ToSql> = codes.iter().map(|c| c as &dyn rusqlite::ToSql).collect();
+    let cat_iter = stmt
+        .query_map(params.as_slice(), |row| {
+            Ok(Category {
+                name: row.get(0)?,
+                code: row.get(1)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut data = Vec::new();
+    for cat in cat_iter {
+        data.push(cat.map_err(|e| e.to_string())?);
+    }
+
+    Ok(data)
+}
+
+#[tauri::command]
+pub fn import_categories_csv(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    let mut rdr = csv::Reader::from_path(path).map_err(|e| format!("Failed to read CSV: {}", e))?;
+    
+    let mut db = state.db.lock().map_err(|e| e.to_string())?;
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+    
+    let mut count = 0;
+    
+    for result in rdr.records() {
+        let record = result.map_err(|e| e.to_string())?;
+        if record.len() < 1 { continue; }
+        
+        let name = &record[0];
+        if name.trim().is_empty() || name.trim().to_lowercase() == "general" { continue; }
+
+        let code = Uuid::new_v4().to_string();
+        let current_date = chrono::Utc::now().timestamp_millis();
+
+        let res = tx.execute(
+            "INSERT INTO categories (name, code, date) VALUES (?1, ?2, ?3)",
+            params![name, code, current_date],
+        );
+        
+        if res.is_ok() {
+            count += 1;
+        }
+    }
+    
+    tx.commit().map_err(|e| e.to_string())?;
+    
+    Ok(format!("Successfully imported {} categories.", count))
+}
