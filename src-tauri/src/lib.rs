@@ -5,6 +5,8 @@ use tauri::Manager;
 use uuid::Uuid;
 use chrono::Utc;
 
+pub mod commands;
+
 pub struct AppState {
     pub db: Mutex<Connection>,
 }
@@ -90,6 +92,30 @@ pub fn run() {
 
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::entries::get_entries,
+            commands::entries::get_entry,
+            commands::entries::create_entry,
+            commands::entries::update_entry,
+            commands::entries::delete_entry,
+            commands::entries::bulk_delete_entries,
+            commands::categories::get_categories,
+            commands::categories::create_category,
+            commands::categories::update_category,
+            commands::categories::delete_category,
+            commands::categories::bulk_delete_categories,
+            commands::scans::get_scans,
+            commands::scans::create_scan,
+            commands::scans::record_scan,
+            commands::scans::update_scan,
+            commands::scans::delete_scan,
+            commands::scans::delete_scans_by_date,
+            commands::scans::bulk_delete_scans_by_dates,
+            commands::dates::get_dates,
+            commands::dates::get_date_range,
+            commands::dates::get_entry_scans,
+            commands::dates::get_entry_date_range,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

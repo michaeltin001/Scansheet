@@ -61,17 +61,17 @@ Here is a comprehensive, step-by-step implementation plan to migrate your Scansh
 
 Your first goal is to combine your frontend and backend into a single Tauri workspace.
 
-**1. Initialize the Tauri Workspace**
+**1. Initialize the Tauri Workspace** ✅
 Run the Tauri `create-tauri-app` utility in a new directory.
 
 * **Prompt choices:** Choose `npm` (or your preferred package manager), `React`, `JavaScript`, and `Vite`.
-* This will generate a project with a frontend folder and a `src-tauri` folder containing the Rust backend. ✅
+* This will generate a project with a frontend folder and a `src-tauri` folder containing the Rust backend.
 
-**2. Port the Frontend Code**
-Copy the contents of your existing `client/src`, `client/index.html`, `client/tailwind.config.js`, and `client/postcss.config.js` into the new Tauri frontend directory. Install your specific dependencies (`@material/web`, `framer-motion`, `react-router-dom`, `tailwindcss`, etc.) into the new `package.json`. You must also install the Tauri JavaScript APIs: `npm install @tauri-apps/api @tauri-apps/plugin-dialog @tauri-apps/plugin-fs`. ✅
+**2. Port the Frontend Code** ✅
+Copy the contents of your existing `client/src`, `client/index.html`, `client/tailwind.config.js`, and `client/postcss.config.js` into the new Tauri frontend directory. Install your specific dependencies (`@material/web`, `framer-motion`, `react-router-dom`, `tailwindcss`, etc.) into the new `package.json`. You must also install the Tauri JavaScript APIs: `npm install @tauri-apps/api @tauri-apps/plugin-dialog @tauri-apps/plugin-fs`.
 
-**3. Configure Vite and Tauri**
-Ensure your `vite.config.js` is set up to work with Tauri. In `src-tauri/tauri.conf.json`, ensure the `build` section's `devUrl` points to your Vite dev server URL (usually `http://localhost:1420`) and the `frontendDist` points to your Vite output folder (e.g., `../dist`). Note that in Tauri v2, `devPath` and `distDir` from v1 have been renamed to `devUrl` and `frontendDist`. ✅
+**3. Configure Vite and Tauri** ✅
+Ensure your `vite.config.js` is set up to work with Tauri. In `src-tauri/tauri.conf.json`, ensure the `build` section's `devUrl` points to your Vite dev server URL (usually `http://localhost:1420`) and the `frontendDist` points to your Vite output folder (e.g., `../dist`). Note that in Tauri v2, `devPath` and `distDir` from v1 have been renamed to `devUrl` and `frontendDist`.
 
 ---
 
@@ -79,8 +79,8 @@ Ensure your `vite.config.js` is set up to work with Tauri. In `src-tauri/tauri.c
 
 Next, you will replace `server/db.js` with Rust logic. You no longer need an HTTP server; the frontend will talk directly to Rust via IPC (Inter-Process Communication).
 
-**1. Add Rust Dependencies**
-Open `src-tauri/Cargo.toml` and add the necessary crates (libraries): ✅
+**1. Add Rust Dependencies** ✅
+Open `src-tauri/Cargo.toml` and add the necessary crates (libraries):
 
 ```toml
 [dependencies]
@@ -99,8 +99,8 @@ chrono = "0.4" # For date formatting
 
 ```
 
-**2. Recreate Database Initialization**
-In `src-tauri/src/main.rs`, translate your `db.js` table creation logic. Create a database connection pool or shared state that Tauri can manage. ✅
+**2. Recreate Database Initialization** ✅
+In `src-tauri/src/main.rs`, translate your `db.js` table creation logic. Create a database connection pool or shared state that Tauri can manage.
 
 ```rust
 use rusqlite::Connection;
@@ -116,20 +116,20 @@ struct AppState {
 // Database initialization moved to the setup hook in main
 ```
 
-**3. Configure Capabilities**
+**3. Configure Capabilities** ✅
 In Tauri v2, security is locked down by default using a granular capabilities system. You must configure `src-tauri/capabilities/default.json` to explicitly allow:
-* Specific core Tauri APIs if you need them (e.g., `"core:window:default"`, `"core:path:default"`) ✅
-* Plugin capabilities (e.g., the dialog plugin `"dialog:default"`, or the file system plugin `"fs:default"`) ✅
+* Specific core Tauri APIs if you need them (e.g., `"core:window:default"`, `"core:path:default"`)
+* Plugin capabilities (e.g., the dialog plugin `"dialog:default"`, or the file system plugin `"fs:default"`)
 
 *(Note: In Tauri v2, your custom Rust commands like `get_entries` do NOT need to be added to the capabilities JSON. They are automatically exposed when registered via `invoke_handler`.)*
 
 ---
 
-### Phase 3: Rewriting API Routes as Tauri Commands
+### Phase 3: Rewriting API Routes as Tauri Commands ✅
 
 This is where you rewrite your Express endpoints (`app.get`, `app.post`, `app.delete`) into Rust macros called "Commands".
 
-**1. Translate Basic CRUD Logic**
+**1. Translate Basic CRUD Logic** ✅
 Look at `server.js`. For example, your `/api/entries` GET route becomes a Tauri command:
 
 ```rust
@@ -149,7 +149,7 @@ fn get_entries(state: State<'_, AppState>, search: String, sort_by: String, orde
 
 ```
 
-**2. Register the Commands**
+**2. Register the Commands** ✅
 Add these commands to the Tauri builder in the `main` function:
 
 ```rust
