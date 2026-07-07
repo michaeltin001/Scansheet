@@ -75,12 +75,12 @@ Ensure your `vite.config.js` is set up to work with Tauri. In `src-tauri/tauri.c
 
 ---
 
-### Phase 2: Core Backend Setup (Rust & SQLite)
+### Phase 2: Core Backend Setup (Rust & SQLite) ✅
 
 Next, you will replace `server/db.js` with Rust logic. You no longer need an HTTP server; the frontend will talk directly to Rust via IPC (Inter-Process Communication).
 
 **1. Add Rust Dependencies**
-Open `src-tauri/Cargo.toml` and add the necessary crates (libraries):
+Open `src-tauri/Cargo.toml` and add the necessary crates (libraries): ✅
 
 ```toml
 [dependencies]
@@ -100,7 +100,7 @@ chrono = "0.4" # For date formatting
 ```
 
 **2. Recreate Database Initialization**
-In `src-tauri/src/main.rs`, translate your `db.js` table creation logic. Create a database connection pool or shared state that Tauri can manage.
+In `src-tauri/src/main.rs`, translate your `db.js` table creation logic. Create a database connection pool or shared state that Tauri can manage. ✅
 
 ```rust
 use rusqlite::Connection;
@@ -118,8 +118,8 @@ struct AppState {
 
 **3. Configure Capabilities**
 In Tauri v2, security is locked down by default using a granular capabilities system. You must configure `src-tauri/capabilities/default.json` to explicitly allow:
-* Specific core Tauri APIs if you need them (e.g., `"core:window:default"`, `"core:path:default"`)
-* Plugin capabilities (e.g., the dialog plugin `"dialog:default"`, or the file system plugin `"fs:default"`)
+* Specific core Tauri APIs if you need them (e.g., `"core:window:default"`, `"core:path:default"`) ✅
+* Plugin capabilities (e.g., the dialog plugin `"dialog:default"`, or the file system plugin `"fs:default"`) ✅
 
 *(Note: In Tauri v2, your custom Rust commands like `get_entries` do NOT need to be added to the capabilities JSON. They are automatically exposed when registered via `invoke_handler`.)*
 
