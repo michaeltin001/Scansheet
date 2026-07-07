@@ -33,6 +33,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handleGenerateNewQR = async () => {
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/entry/qrcode/${currentEntry.code}`, { method: 'PUT' });
             const data = await response.json();
@@ -49,6 +50,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handleDownload = async () => {
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/entry/download/${currentEntry.code}`);
 
@@ -83,6 +85,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handlePrintBadge = async () => {
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/entry/print/${currentEntry.code}`);
             if (response.ok) {

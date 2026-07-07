@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/textfield/outlined-text-field.js";
@@ -38,16 +39,11 @@ const EditCategoryPage = ({ statusMessage, setStatusMessage, onClose, category, 
         }
 
         try {
-            const response = await fetch(`/api/category/${category.code}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            const data = await response.json();
-            setStatusMessage(data.message || data.error);
-            if(response.ok) onUpdate();
+            const message = await invoke('update_category', { code: category.code, name });
+            setStatusMessage(message);
+            onUpdate();
         } catch (error) {
-            setStatusMessage('Could not update name.');
+            setStatusMessage(error || 'Could not update name.');
         }
     };
 

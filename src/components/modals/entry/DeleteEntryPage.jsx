@@ -1,4 +1,5 @@
 import React from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/button/filled-button.js";
@@ -9,21 +10,17 @@ const DeleteEntryPage = ({ statusMessage, setStatusMessage, onClose, entries, on
 
     const handleDelete = async () => {
         const codesToDelete = entries.map(entry => entry.code);
-        const endpoint = codesToDelete.length > 1 ? '/api/entries/delete' : `/api/entry/${codesToDelete[0]}`;
-        const method = codesToDelete.length > 1 ? 'POST' : 'DELETE';
-        const body = codesToDelete.length > 1 ? JSON.stringify({ codes: codesToDelete }) : null;
-
         try {
-            const response = await fetch(endpoint, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: body,
-            });
-            const data = await response.json();
-            setStatusMessage(data.message);
-            if (response.ok) onSuccess();
+            let message;
+            if (codesToDelete.length > 1) {
+                message = await invoke('bulk_delete_entries', { codes: codesToDelete });
+            } else {
+                message = await invoke('delete_entry', { code: codesToDelete[0] });
+            }
+            setStatusMessage(message);
+            onSuccess();
         } catch (error) {
-            setStatusMessage('Could not delete entries.');
+            setStatusMessage(error || 'Could not delete entries.');
         }
     };
 

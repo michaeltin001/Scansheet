@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import EntryToolbar from './EntryPage/EntryToolbar';
@@ -83,20 +84,17 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             await fetchDateRange();
 
             try {
-                const categoriesResponse = await fetch('/api/categories');
-                const categoriesData = await categoriesResponse.json();
-                if (categoriesResponse.ok) {
-                    setAllCategories(categoriesData.data);
-                    setSelectedCategories(new Set(categoriesData.data.map(c => c.code)));
-                    if (!localStorage.getItem('selectedCategory')) {
-                        const generalCategory = categoriesData.data.find(c => c.name === 'General');
-                        if (generalCategory) {
-                            setSelectedCategory(generalCategory.code);
-                        }
+                const categoriesData = await invoke('get_categories');
+                setAllCategories(categoriesData.data);
+                setSelectedCategories(new Set(categoriesData.data.map(c => c.code)));
+                if (!localStorage.getItem('selectedCategory')) {
+                    const generalCategory = categoriesData.data.find(c => c.name === 'General');
+                    if (generalCategory) {
+                        setSelectedCategory(generalCategory.code);
                     }
                 }
             } catch (error) {
-                 setStatusMessage(error.message);
+                 setStatusMessage(error.message || 'Failed to fetch categories.');
             }
         };
 
@@ -215,30 +213,28 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
         }
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
-        const params = new URLSearchParams({
+        const params = {
+            code,
             order,
             page: currentPage,
             limit: scansPerPage,
-        });
+        };
 
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
 
         if (selectedDays.size < 7) {
-            params.append('days', Array.from(selectedDays).join(','));
+            params.days = Array.from(selectedDays).join(',');
         }
 
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
-            params.append('categories', Array.from(selectedCategories).join(','));
+            params.categories = Array.from(selectedCategories).join(',');
         }
 
         try {
-            const response = await fetch(`/api/entry/${code}/scans?${params.toString()}`);
-            const data = await response.json();
-            if (response.ok) {
-                setScans(data.data);
-                setTotalScans(data.total);
-            }
+            const data = await invoke('get_entry_scans', params);
+            setScans(data.data);
+            setTotalScans(data.total);
         } catch (error) {
             setStatusMessage('Could not load scan history.');
         }
@@ -246,27 +242,19 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
 
     const fetchEntry = async () => {
         try {
-            const entryResponse = await fetch(`/api/entry/${code}`);
-            const entryData = await entryResponse.json();
-
-            if (!entryResponse.ok) {
-                throw new Error(entryData.error || 'Failed to fetch entry.');
-            }
-
+            const entryData = await invoke('get_entry', { code });
             setEntry(entryData.data);
             setName(entryData.data.name);
         } catch (error) {
-            setStatusMessage(error.message);
+            setStatusMessage(error || 'Failed to fetch entry.');
             navigate('/entries');
         }
     };
 
     const fetchDateRange = async () => {
         try {
-            const dateRangeResponse = await fetch(`/api/entry/${code}/date-range`);
-            const dateRangeData = await dateRangeResponse.json();
-
-            if (dateRangeResponse.ok && dateRangeData.data.minDate) {
+            const dateRangeData = await invoke('get_entry_date_range', { code });
+            if (dateRangeData.data.minDate) {
                 const { minDate, maxDate } = dateRangeData.data;
                 setStartDate(minDate);
                 setEndDate(maxDate);
@@ -341,6 +329,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/entry/export-csv/${code}`, {
                 method: 'POST',
@@ -398,6 +387,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/entry/export-pdf/${code}`, {
                 method: 'POST',

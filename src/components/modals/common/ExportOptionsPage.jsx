@@ -24,6 +24,7 @@ const ExportOptionsPage = ({
         const path = compareFile.path;
         setCompareFile({ path: null, name: null });
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/dates/compare-delete', {
                 method: 'POST',
@@ -100,6 +101,7 @@ const ExportOptionsPage = ({
         const formData = new FormData();
         formData.append('compareFile', file);
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/dates/compare-upload', {
                 method: 'POST',

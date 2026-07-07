@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/textfield/outlined-text-field.js";
@@ -26,19 +27,11 @@ const NewEntryPage = ({ statusMessage, setStatusMessage, onClose, onSuccess }) =
         }
 
         try {
-            const response = await fetch('/api/entry', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create entry.');
-            }
+            const data = await invoke('create_entry', { name });
             setStatusMessage(data.message);
             onSuccess();
         } catch (error) {
-            setStatusMessage(error.message);
+            setStatusMessage(error || 'Failed to create entry.');
         }
     };
 

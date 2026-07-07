@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/textfield/outlined-text-field.js";
@@ -66,16 +67,15 @@ const EditScanPage = ({ statusMessage, setStatusMessage, onClose, scan, onUpdate
         }
 
         try {
-            const response = await fetch(`/api/scan/${scan.date}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: scanDate, time: scanTime }),
+            const message = await invoke('update_scan', {
+                timestamp: scan.date.toString(),
+                date: scanDate,
+                time: scanTime
             });
-            const data = await response.json();
-            setStatusMessage(data.message || data.error);
-            if (response.ok) onUpdate();
+            setStatusMessage(message);
+            onUpdate();
         } catch (error) {
-            setStatusMessage('Could not update scan.');
+            setStatusMessage(error || 'Could not update scan.');
         }
     };
 

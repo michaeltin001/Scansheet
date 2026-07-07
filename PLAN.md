@@ -188,11 +188,11 @@ fn main() {
 
 ---
 
-### Phase 4: Frontend API Replacement
+### Phase 4: Frontend API Replacement ✅
 
 With the backend commands registered, you must update the React frontend to stop using HTTP `fetch` and start using Tauri's IPC `invoke`.
 
-**1. Update API Calls**
+**1. Update API Calls** ✅
 In your React components or custom hooks, import `invoke`:
 
 ```javascript

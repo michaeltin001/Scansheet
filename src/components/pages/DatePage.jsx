@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import DateToolbar from './DatePage/DateToolbar';
@@ -65,16 +66,13 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const categoriesResponse = await fetch('/api/categories');
-                const categoriesData = await categoriesResponse.json();
-                if (categoriesResponse.ok) {
-                    setAllCategories(categoriesData.data);
-                    setSelectedCategories(new Set(categoriesData.data.map(c => c.code)));
-                    if (!localStorage.getItem('selectedCategory')) {
-                        const generalCategory = categoriesData.data.find(c => c.name === 'General');
-                        if (generalCategory) {
-                            setSelectedCategory(generalCategory.code);
-                        }
+                const categoriesData = await invoke('get_categories');
+                setAllCategories(categoriesData.data);
+                setSelectedCategories(new Set(categoriesData.data.map(c => c.code)));
+                if (!localStorage.getItem('selectedCategory')) {
+                    const generalCategory = categoriesData.data.find(c => c.name === 'General');
+                    if (generalCategory) {
+                        setSelectedCategory(generalCategory.code);
                     }
                 }
 
@@ -196,23 +194,21 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
         }
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
-        const params = new URLSearchParams({
+        const params = {
+            date,
             order,
             page: currentPage,
             limit: scansPerPage,
-        });
+        };
 
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
-            params.append('categories', Array.from(selectedCategories).join(','));
+            params.categories = Array.from(selectedCategories).join(',');
         }
 
         try {
-            const response = await fetch(`/api/scans/${date}?${params.toString()}`);
-            const data = await response.json();
-            if (response.ok) {
-                setScans(data.data);
-                setTotalScans(data.total);
-            }
+            const data = await invoke('get_scans', params);
+            setScans(data.data);
+            setTotalScans(data.total);
         } catch (error) {
             setStatusMessage('Could not load scan history.');
         }
@@ -281,6 +277,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/dates/export-pdf/${date}`, {
                 method: 'POST',
@@ -336,6 +333,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
             requestBody.categories = Array.from(selectedCategories).join(',');
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch(`/api/dates/export-csv/${date}`, {
                 method: 'POST',

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../ui/StatusMessage';
 import HomeInfoCardGrid from './HomePage/HomeInfoCardGrid';
 import HomeModals from './HomePage/HomeModals';
@@ -29,15 +30,12 @@ const HomePage = ({ statusMessage, setStatusMessage }) => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const categoriesResponse = await fetch('/api/categories');
-                const categoriesData = await categoriesResponse.json();
-                if (categoriesResponse.ok) {
-                    setAllCategories(categoriesData.data);
-                    if (!localStorage.getItem('selectedCategory')) {
-                        const generalCategory = categoriesData.data.find(c => c.name === 'General');
-                        if (generalCategory) {
-                            setSelectedCategory(generalCategory.code);
-                        }
+                const categoriesData = await invoke('get_categories');
+                setAllCategories(categoriesData.data);
+                if (!localStorage.getItem('selectedCategory')) {
+                    const generalCategory = categoriesData.data.find(c => c.name === 'General');
+                    if (generalCategory) {
+                        setSelectedCategory(generalCategory.code);
                     }
                 }
             } catch (error) {

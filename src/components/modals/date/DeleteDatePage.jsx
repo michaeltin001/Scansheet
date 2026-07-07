@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/button/filled-button.js";
@@ -25,21 +26,17 @@ const DeleteDatePage = ({ statusMessage, setStatusMessage, onClose, dates, onSuc
         }
 
         const datesToDelete = dates.map(date => date);
-        const endpoint = datesToDelete.length > 1 ? '/api/scans/dates/delete' : `/api/scans/date/${datesToDelete[0]}`;
-        const method = datesToDelete.length > 1 ? 'POST' : 'DELETE';
-        const body = datesToDelete.length > 1 ? JSON.stringify({ dates: datesToDelete }) : null;
-
         try {
-            const response = await fetch(endpoint, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: body,
-            });
-            const data = await response.json();
-            setStatusMessage(data.message);
-            if (response.ok) onSuccess();
+            let message;
+            if (datesToDelete.length > 1) {
+                message = await invoke('bulk_delete_scans_by_dates', { dates: datesToDelete });
+            } else {
+                message = await invoke('delete_scans_by_date', { date: datesToDelete[0] });
+            }
+            setStatusMessage(message);
+            onSuccess();
         } catch (error) {
-            setStatusMessage('Could not delete scans.');
+            setStatusMessage(error || 'Could not delete scans.');
         }
     };
 

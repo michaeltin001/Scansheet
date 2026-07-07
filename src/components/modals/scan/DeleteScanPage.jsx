@@ -1,4 +1,5 @@
 import React from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/button/filled-button.js";
@@ -14,14 +15,11 @@ const DeleteScanPage = ({ statusMessage, setStatusMessage, onClose, scanTimestam
         }
 
         try {
-            const response = await fetch(`/api/scan/${scanTimestamp}`, {
-                method: 'DELETE',
-            });
-            const data = await response.json();
-            setStatusMessage(data.message || data.error);
-            if (response.ok) onSuccess();
+            const message = await invoke('delete_scan', { timestamp: Number(scanTimestamp) });
+            setStatusMessage(message);
+            onSuccess();
         } catch (error) {
-            setStatusMessage('Could not delete scan.');
+            setStatusMessage(error || 'Could not delete scan.');
         }
     };
 

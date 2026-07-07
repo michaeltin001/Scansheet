@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useNavigate } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import DatesToolbar from './DatesPage/DatesToolbar';
@@ -70,9 +71,8 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
 
     const fetchDateRange = async () => {
         try {
-            const response = await fetch(`/api/dates/range`);
-            const data = await response.json();
-            if (response.ok && data.data.minDate) {
+            const data = await invoke('get_date_range');
+            if (data.data.minDate) {
                 const { minDate, maxDate } = data.data;
                 setStartDate(minDate);
                 setEndDate(maxDate);
@@ -95,15 +95,12 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const categoriesResponse = await fetch('/api/categories');
-                const categoriesData = await categoriesResponse.json();
-                if (categoriesResponse.ok) {
-                    setAllCategories(categoriesData.data);
-                    if (!localStorage.getItem('selectedCategory')) {
-                        const generalCategory = categoriesData.data.find(c => c.name === 'General');
-                        if (generalCategory) {
-                            setSelectedCategory(generalCategory.code);
-                        }
+                const categoriesData = await invoke('get_categories');
+                setAllCategories(categoriesData.data);
+                if (!localStorage.getItem('selectedCategory')) {
+                    const generalCategory = categoriesData.data.find(c => c.name === 'General');
+                    if (generalCategory) {
+                        setSelectedCategory(generalCategory.code);
                     }
                 }
             } catch (error) {
@@ -225,29 +222,23 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
         }
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
-        const params = new URLSearchParams({
+        const params = {
             order,
             page: currentPage,
             limit: datesPerPage,
-        });
+        };
 
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
 
         if (selectedDays.size < 7) {
-            params.append('days', Array.from(selectedDays).join(','));
+            params.days = Array.from(selectedDays).join(',');
         }
 
         try {
-            const response = await fetch(`/api/dates?${params.toString()}`);
-            const data = await response.json();
-
-            if (response.ok) {
-                setAllDates(data.data);
-                setTotalDates(data.total);
-            } else {
-                setStatusMessage('Failed to fetch dates.');
-            }
+            const data = await invoke('get_dates', params);
+            setAllDates(data.data);
+            setTotalDates(data.total);
         } catch (error) {
             setStatusMessage('Could not fetch dates.');
         }
@@ -417,6 +408,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/dates/export-csv', {
                 method: 'POST',
@@ -464,6 +456,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
 
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/dates/export-pdf', {
                 method: 'POST',

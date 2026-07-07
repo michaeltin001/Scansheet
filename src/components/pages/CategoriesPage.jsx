@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useNavigate } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import CategoriesToolbar from './CategoriesPage/CategoriesToolbar';
@@ -157,15 +158,16 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         }
 
         try {
-            const response = await fetch(`/api/categories?sortBy=${sortBy}&order=${order}&page=${currentPage}&limit=${categoriesPerPage}&search=${searchQuery}`);
-            const data = await response.json();
+            const data = await invoke('get_categories', {
+                sortBy,
+                order,
+                page: currentPage,
+                limit: categoriesPerPage,
+                search: searchQuery
+            });
             
-            if (response.ok) {
-                setAllCategories(data.data);
-                setTotalCategories(data.total);
-            } else {
-                setStatusMessage('Failed to fetch categories.');
-            }
+            setAllCategories(data.data);
+            setTotalCategories(data.total || 0);
         } catch (error) {
             setStatusMessage('Could not fetch categories.');
         }
@@ -360,6 +362,7 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
         const formData = new FormData();
         formData.append('file', file);
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/categories/import', {
                 method: 'POST',
@@ -400,6 +403,7 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/categories/export-csv', {
                 method: 'POST',
@@ -461,6 +465,7 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/categories/export-pdf', {
                 method: 'POST',

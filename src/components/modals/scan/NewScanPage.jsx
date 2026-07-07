@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/textfield/outlined-text-field.js";
@@ -107,24 +108,16 @@ const NewScanPage = ({
         }
 
         try {
-            const response = await fetch('/api/scan/record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    code: code.trim(),
-                    category_code: selectedCategory,
-                    date: scanDate,
-                    time: scanTime
-                }),
+            const message = await invoke('record_scan', {
+                code: code.trim(),
+                categoryCode: selectedCategory,
+                date: scanDate,
+                time: scanTime
             });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create scan.');
-            }
-            setStatusMessage(data.message);
+            setStatusMessage(message);
             onSuccess();
         } catch (error) {
-            setStatusMessage(error.message);
+            setStatusMessage(error || 'Failed to create scan.');
         }
     };
 

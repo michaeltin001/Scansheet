@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import StatusMessage from '../../ui/StatusMessage';
 import { motion } from 'framer-motion';
 import "@material/web/textfield/outlined-text-field.js";
@@ -18,18 +19,10 @@ const ScannerPage = ({ statusMessage, setStatusMessage, onClose, onCategorySelec
         if (!codeToSubmit.trim()) return;
 
         try {
-            const response = await fetch('/api/scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: codeToSubmit, category_code: selectedCategory }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Scan failed.');
-            }
-            setStatusMessage(data.message);
+            const message = await invoke('create_scan', { code: codeToSubmit, categoryCode: selectedCategory });
+            setStatusMessage(message);
         } catch (error) {
-            setStatusMessage(error.message);
+            setStatusMessage(error || 'Scan failed.');
         } finally {
             setScannedCode('');
         }

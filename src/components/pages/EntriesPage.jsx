@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useNavigate, useLocation } from 'react-router-dom';
 import StatusMessage from '../ui/StatusMessage';
 import EntriesToolbar from './EntriesPage/EntriesToolbar';
@@ -168,15 +169,15 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         }
 
         try {
-            const response = await fetch(`/api/entries?sortBy=${sortBy}&order=${order}&page=${currentPage}&limit=${entriesPerPage}&search=${searchQuery}`);
-            const data = await response.json();
-
-            if (response.ok) {
-                setAllEntries(data.data);
-                setTotalEntries(data.total);
-            } else {
-                setStatusMessage('Failed to fetch entries.');
-            }
+            const data = await invoke('get_entries', {
+                sortBy,
+                order,
+                page: currentPage,
+                limit: entriesPerPage,
+                search: searchQuery
+            });
+            setAllEntries(data.data);
+            setTotalEntries(data.total);
         } catch (error) {
             setStatusMessage('Could not fetch entries.');
         }
@@ -343,15 +344,10 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
     const handleQRCodeClick = async (entry) => {
         try {
-            const response = await fetch(`/api/entry/${entry.code}`);
-            const data = await response.json();
-            if (response.ok) {
-                updateBounds();
-                setEntryForQRCode(data.data);
-                setIsQRCodeModalOpen(true);
-            } else {
-                setStatusMessage('Could not fetch QR code data.');
-            }
+            const data = await invoke('get_entry', { code: entry.code });
+            updateBounds();
+            setEntryForQRCode(data.data);
+            setIsQRCodeModalOpen(true);
         } catch (error) {
             setStatusMessage('Could not fetch QR code data.');
         }
@@ -389,6 +385,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
         const formData = new FormData();
         formData.append('file', file);
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/entries/import', {
                 method: 'POST',
@@ -429,6 +426,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/entries/export-csv', {
                 method: 'POST',
@@ -490,6 +488,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/entries/export-pdf', {
                 method: 'POST',
@@ -551,6 +550,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
+        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
             const response = await fetch('/api/entries/print', {
                 method: 'POST',
