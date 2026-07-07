@@ -1,5 +1,5 @@
 use crate::AppState;
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use chrono::{Local, NaiveDate, NaiveTime, TimeZone};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -145,7 +145,7 @@ pub fn bulk_delete_scans_by_dates(state: State<'_, AppState>, dates: Vec<String>
     let sql = format!("DELETE FROM scans WHERE scan_date IN ({})", placeholders);
     
     db.execute(&sql, rusqlite::params_from_iter(dates.iter()))
-        .map_err(|e| "Could not delete scans for the selected dates.".to_string())?;
+        .map_err(|_e| "Could not delete scans for the selected dates.".to_string())?;
 
     Ok(format!("Successfully deleted scans for {} dates.", dates.len()))
 }

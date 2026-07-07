@@ -12,9 +12,10 @@ pub struct DatesResponse {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DateRange {
-    pub minDate: Option<String>,
-    pub maxDate: Option<String>,
+    pub min_date: Option<String>,
+    pub max_date: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -34,7 +35,7 @@ pub struct EntryScansResponse {
 pub fn get_dates(
     state: State<'_, AppState>,
     order: Option<String>,
-    search: Option<String>,
+    _search: Option<String>,
     page: Option<i32>,
     limit: Option<i32>,
     start_date: Option<String>,
@@ -129,8 +130,8 @@ pub fn get_date_range(state: State<'_, AppState>) -> Result<DateRangeResponse, S
     
     let range = stmt.query_row([], |row| {
         Ok(DateRange {
-            minDate: row.get(0)?,
-            maxDate: row.get(1)?,
+            min_date: row.get(0)?,
+            max_date: row.get(1)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -254,8 +255,8 @@ pub fn get_entry_date_range(state: State<'_, AppState>, code: String) -> Result<
     
     let range = stmt.query_row(params![code], |row| {
         Ok(DateRange {
-            minDate: row.get(0)?,
-            maxDate: row.get(1)?,
+            min_date: row.get(0)?,
+            max_date: row.get(1)?,
         })
     }).map_err(|e| e.to_string())?;
 

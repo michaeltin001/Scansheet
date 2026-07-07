@@ -1,7 +1,6 @@
 use crate::AppState;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use std::sync::MutexGuard;
 use tauri::State;
 use uuid::Uuid;
 
