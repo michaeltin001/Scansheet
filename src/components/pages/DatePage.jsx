@@ -264,52 +264,127 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
     const handleExportPDF = async ({ removeDuplicates, alphabetize, compareFilePath, compareFileName }) => {
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
-
-        const requestBody = {
-            order,
-            removeDuplicates,
-            alphabetize,
-            compareFilePath,
-            compareFileName,
-        };
+        let categories = undefined;
 
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
-            requestBody.categories = Array.from(selectedCategories).join(',');
+            categories = Array.from(selectedCategories).join(',');
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/dates/export-pdf/${date}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
-            });
+            const { jsPDF } = await import('jspdf');
+            await import('jspdf-autotable');
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+            if (compareFilePath) {
+                const results = await invoke('get_comparison_export', {
+                    date,
+                    categories,
+                    compareFilePath
+                });
 
-                const disposition = response.headers.get('content-disposition');
-                let filename = `scans_${date}.pdf`;
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
+                const doc = new jsPDF();
+                
+                const tableColumn = ["Name", "Present", "Timestamp"];
+                const tableRows = [];
+
+                results.forEach(row => {
+                    tableRows.push([
+                        row.name,
+                        row.present,
+                        row.timestamp
+                    ]);
+                });
+
+                doc.autoTable({
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 20,
+                    styles: { fontSize: 10 },
+                    headStyles: { fillColor: [41, 128, 185] }
+                });
+
+                const now = new Date();
+                const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+                const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                
+                doc.setFontSize(10);
+                doc.text(`Generated comparison report on ${reportDate} at ${reportTime}.`, 14, 10);
+
+                const pdfBytes = doc.output('arraybuffer');
+                
+                const { save } = await import('@tauri-apps/plugin-dialog');
+                const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+                const filePath = await save({
+                    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+                    defaultPath: `comparison_${date}.pdf`
+                });
+
+                if (filePath) {
+                    await writeFile(filePath, new Uint8Array(pdfBytes));
+                    setStatusMessage(`Successfully generated PDF.`);
                 }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                setStatusMessage(`Successfully generated PDF.`);
             } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not generate PDF.');
+                const results = await invoke('get_scans_for_export', {
+                    date,
+                    order,
+                    categories,
+                    removeDuplicates,
+                    alphabetize
+                });
+
+                const doc = new jsPDF();
+                
+                const tableColumn = ["Name", "Date", "Time", "Category"];
+                const tableRows = [];
+
+                results.forEach(row => {
+                    const d = new Date(row.date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                    const csvDate = `${month}/${dayOfMonth}/${year}`;
+                    
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    const time = `${hours}:${minutes}`;
+
+                    tableRows.push([
+                        row.entry_name,
+                        csvDate,
+                        time,
+                        row.category_name
+                    ]);
+                });
+
+                doc.autoTable({
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 20,
+                    styles: { fontSize: 10 },
+                    headStyles: { fillColor: [41, 128, 185] }
+                });
+
+                const now = new Date();
+                const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+                const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                
+                doc.setFontSize(10);
+                doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 10);
+
+                const pdfBytes = doc.output('arraybuffer');
+                
+                const { save } = await import('@tauri-apps/plugin-dialog');
+                const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+                const filePath = await save({
+                    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+                    defaultPath: `scans_${date}.pdf`
+                });
+
+                if (filePath) {
+                    await writeFile(filePath, new Uint8Array(pdfBytes));
+                    setStatusMessage(`Successfully generated PDF.`);
+                }
             }
         } catch (error) {
             setStatusMessage('Could not generate PDF.');
@@ -320,55 +395,77 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
     const handleExportCSV = async ({ removeDuplicates, alphabetize, compareFilePath, compareFileName }) => {
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
-
-        const requestBody = {
-            order,
-            removeDuplicates,
-            alphabetize,
-            compareFilePath,
-            compareFileName,
-        };
+        let categories = undefined;
 
         if (allCategories.length > 0 && selectedCategories.size < allCategories.length) {
-            requestBody.categories = Array.from(selectedCategories).join(',');
+            categories = Array.from(selectedCategories).join(',');
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/dates/export-csv/${date}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
-            });
+            if (compareFilePath) {
+                const results = await invoke('get_comparison_export', {
+                    date,
+                    categories,
+                    compareFilePath
+                });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+                let csvString = '"Name","Present","Timestamp"\n';
+                results.forEach(row => {
+                    csvString += `"${row.name}","${row.present}","${row.timestamp}"\n`;
+                });
 
-                const disposition = response.headers.get('content-disposition');
-                let filename = `scans_${date}.csv`;
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
+                const { save } = await import('@tauri-apps/plugin-dialog');
+                const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+
+                const filePath = await save({
+                    filters: [{ name: 'CSV', extensions: ['csv'] }],
+                    defaultPath: `comparison_${date}.csv`
+                });
+
+                if (filePath) {
+                    await writeTextFile(filePath, csvString);
+                    setStatusMessage(`Successfully exported comparison.`);
                 }
-
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                setStatusMessage(`Successfully exported scans.`);
             } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not download scans.');
+                const results = await invoke('get_scans_for_export', {
+                    date,
+                    order,
+                    categories,
+                    removeDuplicates,
+                    alphabetize
+                });
+
+                let csvString = '"Name","Date","Time","Category"\n';
+                results.forEach(row => {
+                    const d = new Date(row.date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                    const csvDate = `${year}-${month}-${dayOfMonth}`;
+                    
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    const seconds = String(d.getSeconds()).padStart(2, '0');
+                    const time = `${hours}:${minutes}:${seconds}`;
+
+                    csvString += `"${row.entry_name}","${csvDate}","${time}","${row.category_name}"\n`;
+                });
+
+                const { save } = await import('@tauri-apps/plugin-dialog');
+                const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+
+                const filePath = await save({
+                    filters: [{ name: 'CSV', extensions: ['csv'] }],
+                    defaultPath: `scans_${date}.csv`
+                });
+
+                if (filePath) {
+                    await writeTextFile(filePath, csvString);
+                    setStatusMessage(`Successfully exported scans.`);
+                }
             }
         } catch (error) {
-            setStatusMessage('Could not download scans.');
+            setStatusMessage('Could not export scans.');
         } finally {
             setIsDownloadMenuOpen(false);
         }

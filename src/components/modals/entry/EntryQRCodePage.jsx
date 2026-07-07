@@ -33,16 +33,13 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handleGenerateNewQR = async () => {
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/entry/qrcode/${currentEntry.code}`, { method: 'PUT' });
-            const data = await response.json();
+            const { invoke } = await import('@tauri-apps/api/core');
+            const data = await invoke('update_entry_qrcode', { code: currentEntry.code });
             setStatusMessage(data.message);
-            if (response.ok) {
-                setCurrentEntry(prev => ({ ...prev, ...data.data }));
-                if (onQRCodeUpdate) {
-                    onQRCodeUpdate({ ...currentEntry, ...data.data });
-                }
+            setCurrentEntry(prev => ({ ...prev, ...data.data }));
+            if (onQRCodeUpdate) {
+                onQRCodeUpdate({ ...currentEntry, ...data.data });
             }
         } catch (error) {
             setStatusMessage('Could not generate new QR code.');
@@ -50,34 +47,29 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handleDownload = async () => {
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/entry/download/${currentEntry.code}`);
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+            // Strip prefix from base64 string
+            const base64Data = currentEntry.code_png.replace(/^data:image\/png;base64,/, "");
+            const binaryString = window.atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
 
-                const disposition = response.headers.get('content-disposition');
-                let filename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.png`;
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
-                
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
+            const defaultFilename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.png`;
+            
+            const filePath = await save({
+                filters: [{ name: 'PNG', extensions: ['png'] }],
+                defaultPath: defaultFilename
+            });
+
+            if (filePath) {
+                await writeFile(filePath, bytes);
                 setStatusMessage("Successfully exported PNG.");
-            } else {
-                setStatusMessage("Could not download PNG.");
             }
         } catch (error) {
             setStatusMessage("An error occurred during download.");
@@ -85,33 +77,39 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
     };
 
     const handlePrintBadge = async () => {
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch(`/api/entry/print/${currentEntry.code}`);
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+            const { jsPDF } = await import('jspdf');
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
 
-                const disposition = response.headers.get('content-disposition');
-                let filename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.pdf`;
-                 if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
-                }
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'letter'
+            });
 
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
+            const margin = 36;
+            let currentY = margin;
+
+            doc.setFontSize(14);
+            doc.text(currentEntry.name, margin, currentY);
+            currentY += 20;
+
+            const base64Data = currentEntry.code_png.replace(/^data:image\/png;base64,/, "");
+            doc.addImage(base64Data, 'PNG', margin, currentY, 150, 150);
+
+            const pdfBytes = doc.output('arraybuffer');
+
+            const defaultFilename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.pdf`;
+            
+            const filePath = await save({
+                filters: [{ name: 'PDF', extensions: ['pdf'] }],
+                defaultPath: defaultFilename
+            });
+
+            if (filePath) {
+                await writeFile(filePath, new Uint8Array(pdfBytes));
                 setStatusMessage("Successfully generated PDF.");
-            } else {
-                setStatusMessage("Could not generate PDF.");
             }
         } catch (error) {
             setStatusMessage("Could not generate PDF.");

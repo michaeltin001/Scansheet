@@ -117,6 +117,8 @@ pub fn run() {
             commands::scans::delete_scan,
             commands::scans::delete_scans_by_date,
             commands::scans::bulk_delete_scans_by_dates,
+            commands::scans::get_scans_for_export,
+            commands::scans::get_comparison_export,
             commands::dates::get_dates,
             commands::dates::get_date_range,
             commands::dates::get_entry_scans,

@@ -529,40 +529,67 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 break;
         }
 
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
         try {
-            const response = await fetch('/api/entries/print', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codes: codesToPrint, sortBy, order }),
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const { jsPDF } = await import('jspdf');
+
+            const filePath = await save({
+                defaultPath: 'badges.pdf',
+                filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
+            if (!filePath) return;
 
-                const disposition = response.headers.get('content-disposition');
-                let filename = 'badges.pdf';
-                if (disposition && disposition.includes('attachment')) {
-                    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1];
-                    }
+            const entries = await invoke('get_entries_by_codes', { codes: codesToPrint, sortBy, order });
+
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'letter'
+            });
+
+            const margin = 36;
+            const cardWidth = 150;
+            const cardHeight = 200;
+            const horizontalSpacing = 20;
+            const verticalSpacing = 20;
+            const columns = 3;
+            const rows = 3; // 3x3 grid per page
+
+            let currentCol = 0;
+            let currentRow = 0;
+
+            for (let i = 0; i < entries.length; i++) {
+                if (i > 0 && currentCol === 0 && currentRow === 0) {
+                    doc.addPage();
                 }
 
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-                setStatusMessage("Successfully generated PDF.");
-            } else {
-                const errorData = await response.json();
-                setStatusMessage(errorData.error || 'Could not generate PDF.');
+                const entry = entries[i];
+                const x = margin + (currentCol * (cardWidth + horizontalSpacing));
+                const y = margin + (currentRow * (cardHeight + verticalSpacing));
+
+                doc.setFontSize(12);
+                doc.text(entry.name, x, y + 14, { maxWidth: cardWidth });
+
+                const base64Data = entry.code_png.replace(/^data:image\/png;base64,/, "");
+                doc.addImage(base64Data, 'PNG', x, y + 20, 150, 150);
+
+                currentCol++;
+                if (currentCol >= columns) {
+                    currentCol = 0;
+                    currentRow++;
+                }
+                if (currentRow >= rows) {
+                    currentRow = 0;
+                }
             }
+
+            const arrayBuffer = doc.output('arraybuffer');
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+            
+            setStatusMessage(`Successfully generated PDF.`);
         } catch (error) {
             setStatusMessage('Could not generate PDF.');
         }

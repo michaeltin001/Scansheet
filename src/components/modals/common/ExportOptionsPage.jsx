@@ -16,39 +16,16 @@ const ExportOptionsPage = ({
     const [removeDuplicates, setRemoveDuplicates] = useState(false);
     const [alphabetize, setAlphabetize] = useState(false);
     const [compareFile, setCompareFile] = useState({ path: null, name: null });
-    const fileInputRef = useRef(null);
 
-    const handleDeleteCompareFile = async (showStatus = true) => {
+    const handleDeleteCompareFile = () => {
         if (!compareFile.path) return;
-
-        const path = compareFile.path;
         setCompareFile({ path: null, name: null });
-
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
-        try {
-            const response = await fetch('/api/dates/compare-delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePath: path }),
-            });
-            const data = await response.json();
-            if (showStatus) {
-                if (response.ok) {
-                    setStatusMessage("Comparison file removed.");
-                } else {
-                    setStatusMessage(data.error || "Could not remove file.");
-                }
-            }
-        } catch (error) {
-            if (showStatus) {
-                setStatusMessage("Error removing file.");
-            }
-        }
+        setStatusMessage("Comparison file removed.");
     };
 
     const handleClose = () => {
         if (compareFile.path) {
-            handleDeleteCompareFile(false);
+            handleDeleteCompareFile();
         }
         onClose();
     };
@@ -84,42 +61,25 @@ const ExportOptionsPage = ({
         };
     }, [removeDuplicates, alphabetize, compareFile, onExport]);
 
-    const handleCompareClick = () => {
+    const handleCompareClick = async () => {
         if (compareFile.path) {
-            handleDeleteCompareFile(true);
+            handleDeleteCompareFile();
         } else {
-            fileInputRef.current.click();
-        }
-    };
+            try {
+                const { open } = await import('@tauri-apps/plugin-dialog');
+                const selectedPath = await open({
+                    multiple: false,
+                    filters: [{ name: 'CSV', extensions: ['csv'] }]
+                });
 
-    const handleFileChange = async (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('compareFile', file);
-
-        // FIX: Phase 5 - Replace HTTP fetch with Tauri IPC command
-        try {
-            const response = await fetch('/api/dates/compare-upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                setCompareFile({ path: data.filePath, name: data.originalName });
-                setStatusMessage("Comparison file uploaded.");
-            } else {
-                throw new Error(data.error || 'File upload failed.');
-            }
-        } catch (error) {
-            setStatusMessage(error.message);
-        } finally {
-            if (fileInputRef.current) {
-                fileInputRef.current.value = null;
+                if (selectedPath) {
+                    // Extract filename from path
+                    const name = selectedPath.split(/[\\/]/).pop();
+                    setCompareFile({ path: selectedPath, name });
+                    setStatusMessage("Comparison file selected.");
+                }
+            } catch (error) {
+                setStatusMessage("Error selecting file.");
             }
         }
     };
@@ -142,13 +102,6 @@ const ExportOptionsPage = ({
                         </md-outlined-icon-button>
                     )}
                 </motion.div>
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".csv"
-                    style={{ display: 'none' }}
-                />
             </div>
 
             <div className="absolute top-6 right-6 z-10">

@@ -315,3 +315,183 @@ pub fn update_scan(
 
     Ok("Successfully updated scan.".to_string())
 }
+
+#[tauri::command]
+pub fn get_scans_for_export(
+    state: State<'_, AppState>,
+    date: String,
+    order: Option<String>,
+    categories: Option<String>,
+    remove_duplicates: bool,
+    alphabetize: bool,
+) -> Result<Vec<Scan>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut where_clauses = vec!["s.scan_date = ?".to_string()];
+    let mut params_vals: Vec<String> = vec![date];
+
+    if let Some(cats) = categories {
+        let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
+        if !cat_list.is_empty() {
+            let placeholders = cat_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            where_clauses.push(format!("s.category_code IN ({})", placeholders));
+            for cat in cat_list {
+                params_vals.push(cat.to_string());
+            }
+        }
+    }
+
+    let where_string = where_clauses.join(" AND ");
+
+    let ord = order.unwrap_or_else(|| "DESC".to_string());
+    let mut final_order = if ord.to_uppercase() == "ASC" || ord.to_uppercase() == "DESC" {
+        ord.to_uppercase()
+    } else {
+        "DESC".to_string()
+    };
+
+    if alphabetize {
+        final_order = format!("entry_name ASC, date {}", final_order);
+    } else {
+        final_order = format!("date {}", final_order);
+    }
+
+    let sql = if remove_duplicates {
+        format!("
+            WITH RankedScans AS (
+                SELECT s.date, e.name as entry_name, c.name as category_name,
+                       ROW_NUMBER() OVER(PARTITION BY s.code ORDER BY s.date DESC) as rn
+                FROM scans s
+                JOIN entries e ON s.code = e.code
+                JOIN categories c ON s.category_code = c.code
+                WHERE {}
+            )
+            SELECT date, entry_name, category_name
+            FROM RankedScans
+            WHERE rn = 1
+            ORDER BY {}
+        ", where_string, final_order)
+    } else {
+        format!("
+            SELECT s.date as date, e.name as entry_name, c.name as category_name
+            FROM scans s
+            JOIN entries e ON s.code = e.code
+            JOIN categories c ON s.category_code = c.code
+            WHERE {}
+            ORDER BY {}
+        ", where_string, final_order)
+    };
+
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    let scans = stmt
+        .query_map(rusqlite::params_from_iter(params_vals.iter()), |row| {
+            Ok(Scan {
+                date: row.get(0)?,
+                entry_name: row.get(1)?,
+                category_name: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(scans)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ComparisonResult {
+    pub name: String,
+    pub present: String,
+    pub timestamp: String,
+}
+
+#[tauri::command]
+pub fn get_comparison_export(
+    state: State<'_, AppState>,
+    date: String,
+    categories: Option<String>,
+    compare_file_path: String,
+) -> Result<Vec<ComparisonResult>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_path(&compare_file_path).map_err(|e| e.to_string())?;
+    let mut imported_names = Vec::new();
+    for result in reader.records() {
+        let record = result.map_err(|e| e.to_string())?;
+        if let Some(name) = record.get(0) {
+            if !name.trim().is_empty() {
+                imported_names.push(name.trim().to_string());
+            }
+        }
+    }
+
+    let mut where_clauses = vec!["s.scan_date = ?".to_string()];
+    let mut params_vals: Vec<String> = vec![date];
+
+    if let Some(cats) = categories {
+        let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
+        if !cat_list.is_empty() {
+            let placeholders = cat_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            where_clauses.push(format!("s.category_code IN ({})", placeholders));
+            for cat in cat_list {
+                params_vals.push(cat.to_string());
+            }
+        }
+    }
+
+    let where_string = where_clauses.join(" AND ");
+
+    let sql = format!("
+        WITH RankedScans AS (
+            SELECT s.date, e.name as entry_name,
+                   ROW_NUMBER() OVER(PARTITION BY s.code ORDER BY s.date DESC) as rn
+            FROM scans s
+            JOIN entries e ON s.code = e.code
+            JOIN categories c ON s.category_code = c.code
+            WHERE {}
+        )
+        SELECT date, entry_name
+        FROM RankedScans
+        WHERE rn = 1
+    ", where_string);
+
+    let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
+    
+    use std::collections::HashMap;
+    let mut scan_map = HashMap::new();
+
+    let rows = stmt
+        .query_map(rusqlite::params_from_iter(params_vals.iter()), |row| {
+            let date: i64 = row.get(0)?;
+            let name: String = row.get(1)?;
+            Ok((name, date))
+        })
+        .map_err(|e| e.to_string())?;
+
+    for row in rows {
+        let (name, date) = row.map_err(|e| e.to_string())?;
+        scan_map.insert(name, date);
+    }
+
+    let mut results = Vec::new();
+    for name in imported_names {
+        if let Some(timestamp) = scan_map.get(&name) {
+            let local_time = Local.timestamp_millis_opt(*timestamp).single().ok_or("Invalid timestamp")?;
+            let time_str = local_time.format("%H:%M:%S").to_string();
+            results.push(ComparisonResult {
+                name,
+                present: "X".to_string(),
+                timestamp: time_str,
+            });
+        } else {
+            results.push(ComparisonResult {
+                name,
+                present: "".to_string(),
+                timestamp: "".to_string(),
+            });
+        }
+    }
+
+    Ok(results)
+}
+

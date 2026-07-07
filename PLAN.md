@@ -248,10 +248,10 @@ You currently rely heavily on `PDFDocument` (pdfkit) with exact coordinate plott
 
 During the initial pass of Phase 5, several advanced endpoint features and QR printing workflows were missed due to their placement in auxiliary components (`DatePage.jsx`, `ExportOptionsPage.jsx`, `EntryQRCodePage.jsx`). This phase rectifies those gaps.
 
-**1. Date Page Export Fidelity**
+**1. Date Page Export Fidelity** ✅
 The singular Date Page requires options to natively pick a "comparison CSV" to diff against missing individuals, as well as options to remove duplicates and alphabetize the roster. This logic will be handled natively by `src-tauri` using CTE SQL cross-referencing and the `csv` crate.
 
-**2. QR Code Badges and Prints**
+**2. QR Code Badges and Prints** ✅
 The system must generate PDF badges holding specific QR codes. Using `jspdf`, the frontend will embed the Base64 QR png strings onto PDF documents natively and save them to disk. Additionally, regenerating new QR codes (`update_entry_qrcode`) and downloading native `.png` files must be hooked up to their respective IPC bindings.
 
 ---
