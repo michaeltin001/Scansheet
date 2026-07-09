@@ -313,13 +313,19 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
     };
 
     const handleExportCSV = async () => {
+        if (selectedDays.size === 0 || selectedCategories.size === 0) {
+            setIsDownloadMenuOpen(false);
+            setStatusMessage('No data to export based on selected filters.');
+            return;
+        }
+
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
         const requestBody = {
             code,
             order,
             page: 1,
-            limit: 9999999,
+            limit: -1,
         };
 
         if (startDate) requestBody.startDate = startDate;
@@ -358,7 +364,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
                 const hours = String(d.getHours()).padStart(2, '0');
                 const minutes = String(d.getMinutes()).padStart(2, '0');
                 const seconds = String(d.getSeconds()).padStart(2, '0');
-                csvContent += `"${entry.name}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.categoryName}"\n`;
+                csvContent += `"${entry.name}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.category}"\n`;
             });
 
             await writeFile(filePath, new TextEncoder().encode(csvContent));
@@ -371,13 +377,19 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
     };
 
     const handleExportPDF = async () => {
+        if (selectedDays.size === 0 || selectedCategories.size === 0) {
+            setIsDownloadMenuOpen(false);
+            setStatusMessage('No data to export based on selected filters.');
+            return;
+        }
+
         const order = sortOption === 'date-asc' ? 'ASC' : 'DESC';
 
         const requestBody = {
             code,
             order,
             page: 1,
-            limit: 9999999,
+            limit: -1,
         };
 
         if (startDate) requestBody.startDate = startDate;
@@ -419,7 +431,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
                 const hours = String(d.getHours()).padStart(2, '0');
                 const minutes = String(d.getMinutes()).padStart(2, '0');
                 const seconds = String(d.getSeconds()).padStart(2, '0');
-                return [entry.name, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.categoryName];
+                return [entry.name, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.category];
             });
 
             doc.autoTable({
@@ -427,6 +439,39 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
                 body: tableData,
                 margin: { top: 30 }
             });
+
+            doc.addPage();
+            
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayString = selectedDays.size === 7 ? 'All' : Array.from(selectedDays).map(d => daysOfWeek[d]).join(', ');
+            
+            const categoryString = selectedCategories.size === allCategories.length ? 'All' : 
+                allCategories.filter(c => selectedCategories.has(c.code)).map(c => c.name).join(', ');
+            
+            const formatYMDtoMDY = (ymd) => {
+                if (!ymd) return 'N/A';
+                const [y, m, d] = ymd.split('-');
+                return `${m}/${d}/${y}`;
+            };
+            const formattedStartDate = formatYMDtoMDY(startDate);
+            const formattedEndDate = formatYMDtoMDY(endDate);
+            
+            let y = 30;
+            
+            const now = new Date();
+            const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
+            const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+            doc.setFontSize(10);
+            doc.text(`Generated report for ${entry.name} on ${reportDate} at ${reportTime}.`, 14, y);
+            doc.text(`Successfully exported ${scans.length} scans, using the following options:`, 14, y + 10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Day(s): ${dayString}`, 14, y + 16);
+            doc.text(`Categories: ${categoryString}`, 14, y + 22);
+            doc.text(`Date Range: ${formattedStartDate} to ${formattedEndDate}`, 14, y + 28);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text("Scansheet v1.0.0", 14, y + 42);
 
             const arrayBuffer = doc.output('arraybuffer');
             await writeFile(filePath, new Uint8Array(arrayBuffer));

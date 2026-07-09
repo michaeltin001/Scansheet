@@ -218,16 +218,16 @@ pub fn bulk_delete_categories(state: State<'_, AppState>, codes: Vec<String>) ->
 
     let tx = db.transaction().map_err(|e| e.to_string())?;
 
-    for code in &filtered_codes {
-        tx.execute(
-            "UPDATE scans SET category_code = ?1 WHERE category_code = ?2",
-            params![&general_code, code],
-        )
-        .map_err(|e| e.to_string())?;
+    let json_codes = serde_json::to_string(&filtered_codes).map_err(|e| e.to_string())?;
 
-        tx.execute("DELETE FROM categories WHERE code = ?1", params![code])
-            .map_err(|e| e.to_string())?;
-    }
+    tx.execute(
+        "UPDATE scans SET category_code = ?1 WHERE category_code IN (SELECT value FROM json_each(?2))",
+        params![&general_code, &json_codes],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.execute("DELETE FROM categories WHERE code IN (SELECT value FROM json_each(?1))", params![&json_codes])
+        .map_err(|e| e.to_string())?;
 
     tx.commit().map_err(|e| e.to_string())?;
 
@@ -293,18 +293,17 @@ pub fn get_categories_by_codes(
         return Err("Invalid sort parameters.".to_string());
     }
 
-    let placeholders = codes.iter().map(|_| "?").collect::<Vec<&str>>().join(",");
+    let json_codes = serde_json::to_string(&codes).map_err(|e| e.to_string())?;
     let sql = format!(
-        "SELECT name, code FROM categories WHERE code IN ({}) ORDER BY {} {}",
-        placeholders, sort_by, order
+        "SELECT name, code FROM categories WHERE code IN (SELECT value FROM json_each(?1)) ORDER BY {} {}",
+        sort_by, order
     );
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
     
-    let params: Vec<&dyn rusqlite::ToSql> = codes.iter().map(|c| c as &dyn rusqlite::ToSql).collect();
     let cat_iter = stmt
-        .query_map(params.as_slice(), |row| {
+        .query_map(params![json_codes], |row| {
             Ok(Category {
                 name: row.get(0)?,
                 code: row.get(1)?,

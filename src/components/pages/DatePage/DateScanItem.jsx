@@ -21,8 +21,8 @@ const DateScanItem = ({
             className="border border-[var(--theme-outline)] rounded-lg p-4 flex justify-between items-center"
         >
             <div>
-                <p className="opacity-70 text-xs">Category: {scan.category_name}</p>
-                <p className="font-semibold text-lg">{scan.entry_name}</p>
+                <p className="opacity-70 text-xs">Category: {scan.category}</p>
+                <p className="font-semibold text-lg">{scan.entryName}</p>
                 <p className="font-semibold text-lg font-tabular-nums">{`${formattedScanDate} at ${formattedTime}`}</p>
             </div>
             <div onClick={(e) => e.stopPropagation()} className="flex gap-2 items-center">

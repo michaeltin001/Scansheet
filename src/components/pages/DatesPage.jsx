@@ -433,7 +433,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 const hours = String(d.getHours()).padStart(2, '0');
                 const minutes = String(d.getMinutes()).padStart(2, '0');
                 const seconds = String(d.getSeconds()).padStart(2, '0');
-                csvContent += `"${scan.entryName}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.categoryName}"\n`;
+                csvContent += `"${scan.entryName}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.category}"\n`;
             });
 
             await writeFile(filePath, new TextEncoder().encode(csvContent));
@@ -479,7 +479,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 const hours = String(d.getHours()).padStart(2, '0');
                 const minutes = String(d.getMinutes()).padStart(2, '0');
                 const seconds = String(d.getSeconds()).padStart(2, '0');
-                return [scan.entryName, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.categoryName];
+                return [scan.entryName, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.category];
             });
 
             doc.autoTable({

@@ -46,6 +46,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
         }
     };
 
+    // FIXED: MT 7/7
     const handleDownload = async () => {
         try {
             const { save } = await import('@tauri-apps/plugin-dialog');
@@ -61,7 +62,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
             }
 
             const defaultFilename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.png`;
-            
+
             const filePath = await save({
                 filters: [{ name: 'PNG', extensions: ['png'] }],
                 defaultPath: defaultFilename
@@ -72,7 +73,7 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
                 setStatusMessage("Successfully exported PNG.");
             }
         } catch (error) {
-            setStatusMessage("An error occurred during download.");
+            setStatusMessage("Could not process image.");
         }
     };
 
@@ -88,20 +89,56 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
                 format: 'letter'
             });
 
-            const margin = 36;
-            let currentY = margin;
+            // Exact layout math restored to match original server.js sticker alignment (Claude's fix)
+            const pageWidth = 612;
+            const pageHeight = 792;
+            const top = 72;
+            const bottom = 72;
+            const left = 36;
+            const right = 36;
+            
+            const printableW = pageWidth - left - right;
+            const printableH = pageHeight - top - bottom;
+            
+            const labelW = printableW / 2;
+            const labelH = printableH / 3;
+            
+            const padding = 18;
+            
+            const boxW = labelW - padding * 2;
+            const boxH = labelH - padding * 4;
+            const imgSize = Math.min(boxW, boxH);
+            
+            const imgX = left + padding + (boxW - imgSize) / 2;
+            const imgY = top + padding + (boxH - imgSize) / 2;
 
-            doc.setFontSize(14);
-            doc.text(currentEntry.name, margin, currentY);
-            currentY += 20;
+            doc.addImage(currentEntry.code_png, 'PNG', imgX, imgY, imgSize, imgSize);
 
-            const base64Data = currentEntry.code_png.replace(/^data:image\/png;base64,/, "");
-            doc.addImage(base64Data, 'PNG', margin, currentY, 150, 150);
+            const textY = top + labelH - padding - 24;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            
+            const nameLines = doc.splitTextToSize(currentEntry.name, labelW);
+            doc.text(nameLines, left + labelW / 2, textY, {
+                align: 'center',
+                baseline: 'top'
+            });
+
+            const nameHeight = nameLines.length * 12;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.text(currentEntry.code, left + labelW / 2, textY + nameHeight + 2, {
+                align: 'center',
+                baseline: 'top',
+                maxWidth: labelW
+            });
 
             const pdfBytes = doc.output('arraybuffer');
 
             const defaultFilename = `${currentEntry.name.replace(/\s+/g, '_')}_${currentEntry.code}.pdf`;
-            
+
             const filePath = await save({
                 filters: [{ name: 'PDF', extensions: ['pdf'] }],
                 defaultPath: defaultFilename
@@ -152,17 +189,17 @@ const EntryQRCodePage = ({ onClose, entry, onQRCodeUpdate, statusMessage, setSta
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0 overflow-y-auto">
-                 <div className="w-full max-w-72 aspect-square bg-white p-2 rounded-lg border-4 border-[var(--theme-outline)]">
+                <div className="w-full max-w-72 aspect-square bg-white p-2 rounded-lg border-4 border-[var(--theme-outline)]">
                     <img src={displayedImage} alt="QR Code" className="w-full h-full" />
-                 </div>
-                 <div className="flex items-center justify-center gap-2">
-                     <p
-                         className="text-base p-2 rounded-md cursor-pointer transition-colors hover:bg-[var(--theme-highlight)]"
-                         onClick={handleCopyCode}
-                     >
-                         {currentEntry.code}
-                     </p>
-                 </div>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                    <p
+                        className="text-base p-2 rounded-md cursor-pointer transition-colors hover:bg-[var(--theme-highlight)]"
+                        onClick={handleCopyCode}
+                    >
+                        {currentEntry.code}
+                    </p>
+                </div>
             </div>
         </div>
     );

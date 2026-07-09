@@ -345,11 +345,15 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
     const handleQRCodeClick = async (entry) => {
         try {
             const data = await invoke('get_entry', { code: entry.code });
+            if (!data.data) {
+                setStatusMessage("Entry not found.");
+                return;
+            }
             updateBounds();
             setEntryForQRCode(data.data);
             setIsQRCodeModalOpen(true);
         } catch (error) {
-            setStatusMessage('Could not fetch QR code data.');
+            setStatusMessage('Entry not found.');
         }
     };
 
@@ -421,7 +425,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
             if (!filePath) return;
 
-            const entries = await invoke('get_entries_by_codes', { codes: codesToExport, sortBy, order });
+            const entries = await invoke('get_entries_by_codes', { codes: codesToExport, sortBy, order, includeImage: false });
             
             let csvContent = '"Name","Code","Date"\n';
             entries.forEach(entry => {
@@ -468,7 +472,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
             if (!filePath) return;
 
-            const entries = await invoke('get_entries_by_codes', { codes: codesToExport, sortBy, order });
+            const entries = await invoke('get_entries_by_codes', { codes: codesToExport, sortBy, order, includeImage: false });
             
             const doc = new jsPDF();
             
@@ -491,10 +495,11 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const dayOfMonth = String(now.getDate()).padStart(2, '0');
             const reportDate = `${month}/${dayOfMonth}/${year}`;
+            const reportTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
             
             doc.addPage();
             doc.setFontSize(12);
-            doc.text(`Generated report on ${reportDate}.`, 14, 20);
+            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 20);
             doc.text(`Successfully exported ${entries.length} entries.`, 14, 30);
             doc.text("Scansheet v1.0.0", 14, 40);
 
@@ -535,14 +540,26 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
 
+            const entries = await invoke('get_entries_by_codes', { codes: codesToPrint, sortBy, order, includeImage: true });
+
+            if (!entries || entries.length === 0) {
+                setStatusMessage("Could not load entries for printing.");
+                return;
+            }
+
+            // Generate dynamic filename for single badge prints like the old endpoint
+            let defaultPath = 'badges.pdf';
+            if (entries.length === 1) {
+                const row = entries[0];
+                defaultPath = `${row.name.replace(/\s+/g, '_')}_${row.code}.pdf`;
+            }
+
             const filePath = await save({
-                defaultPath: 'badges.pdf',
+                defaultPath: defaultPath,
                 filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
             if (!filePath) return;
-
-            const entries = await invoke('get_entries_by_codes', { codes: codesToPrint, sortBy, order });
 
             const doc = new jsPDF({
                 orientation: 'portrait',
@@ -550,40 +567,70 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
                 format: 'letter'
             });
 
-            const margin = 36;
-            const cardWidth = 150;
-            const cardHeight = 200;
-            const horizontalSpacing = 20;
-            const verticalSpacing = 20;
-            const columns = 3;
-            const rows = 3; // 3x3 grid per page
-
-            let currentCol = 0;
-            let currentRow = 0;
+            const pageWidth = 612;
+            const pageHeight = 792;
+            const top = 72;
+            const bottom = 72;
+            const left = 36;
+            const right = 36;
+            
+            const printableW = pageWidth - left - right;
+            const printableH = pageHeight - top - bottom;
+            
+            const labelW = printableW / 2;
+            const labelH = printableH / 3;
+            
+            const positions = [
+                { x: left, y: top },
+                { x: left + labelW, y: top },
+                { x: left, y: top + labelH },
+                { x: left + labelW, y: top + labelH },
+                { x: left, y: top + labelH * 2 },
+                { x: left + labelW, y: top + labelH * 2 },
+            ];
 
             for (let i = 0; i < entries.length; i++) {
-                if (i > 0 && currentCol === 0 && currentRow === 0) {
+                const slotIndex = i % 6;
+
+                if (i > 0 && slotIndex === 0) {
                     doc.addPage();
                 }
 
                 const entry = entries[i];
-                const x = margin + (currentCol * (cardWidth + horizontalSpacing));
-                const y = margin + (currentRow * (cardHeight + verticalSpacing));
+                const pos = positions[slotIndex];
+                const padding = 18;
+                
+                const boxW = labelW - padding * 2;
+                const boxH = labelH - padding * 4;
+                const imgSize = Math.min(boxW, boxH);
+                
+                const imgX = pos.x + padding + (boxW - imgSize) / 2;
+                const imgY = pos.y + padding + (boxH - imgSize) / 2;
 
-                doc.setFontSize(12);
-                doc.text(entry.name, x, y + 14, { maxWidth: cardWidth });
+                // Pass the full Data URI directly to jsPDF instead of stripping the prefix
+                doc.addImage(entry.code_png, 'PNG', imgX, imgY, imgSize, imgSize);
 
-                const base64Data = entry.code_png.replace(/^data:image\/png;base64,/, "");
-                doc.addImage(base64Data, 'PNG', x, y + 20, 150, 150);
+                const textY = pos.y + labelH - padding - 24;
 
-                currentCol++;
-                if (currentCol >= columns) {
-                    currentCol = 0;
-                    currentRow++;
-                }
-                if (currentRow >= rows) {
-                    currentRow = 0;
-                }
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                
+                // Use splitTextToSize to dynamically calculate name height and prevent text overlap
+                const nameLines = doc.splitTextToSize(entry.name, labelW);
+                doc.text(nameLines, pos.x + labelW / 2, textY, {
+                    align: 'center',
+                    baseline: 'top'
+                });
+
+                const nameHeight = nameLines.length * 12;
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.text(entry.code, pos.x + labelW / 2, textY + nameHeight + 2, {
+                    align: 'center',
+                    baseline: 'top',
+                    maxWidth: labelW
+                });
             }
 
             const arrayBuffer = doc.output('arraybuffer');
@@ -591,7 +638,7 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             
             setStatusMessage(`Successfully generated PDF.`);
         } catch (error) {
-            setStatusMessage('Could not generate PDF.');
+            setStatusMessage(error.message || error.toString());
         }
     };
 

@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Scan {
     pub date: i64,
     pub entry_name: String,
+    #[serde(rename = "category")]
     pub category_name: String,
 }
 
@@ -44,11 +46,9 @@ pub fn get_scans(
     if let Some(cats) = categories {
         let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
         if !cat_list.is_empty() {
-            let placeholders = cat_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            where_clauses.push(format!("s.category_code IN ({})", placeholders));
-            for cat in cat_list {
-                params_vals.push(cat.to_string());
-            }
+            let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
+            where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
+            params_vals.push(json_cats);
         }
     }
 
@@ -101,6 +101,7 @@ pub fn get_scans(
     })
 }
 
+// FIXED: MT 7/7
 #[tauri::command]
 pub fn delete_scan(state: State<'_, AppState>, timestamp: i64) -> Result<String, String> {
     let mut db = state.db.lock().map_err(|e| e.to_string())?;
@@ -111,16 +112,16 @@ pub fn delete_scan(state: State<'_, AppState>, timestamp: i64) -> Result<String,
             params![timestamp],
             |row| row.get(0),
         )
-        .unwrap_or(0);
+        .map_err(|_| "Could not find scan.".to_string())?;
 
     if count == 0 {
         return Err("Scan not found.".to_string());
     }
 
-    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let tx = db.transaction().map_err(|_| "Could not start transaction.".to_string())?;
     tx.execute("DELETE FROM scans WHERE date = ?1", params![timestamp])
-        .map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())?;
+        .map_err(|_| "Could not delete scan record.".to_string())?;
+    tx.commit().map_err(|_| "Could not commit transaction.".to_string())?;
 
     Ok("Successfully deleted scan.".to_string())
 }
@@ -151,22 +152,21 @@ pub fn get_scans_by_dates(
         return Err("Invalid order parameter.".to_string());
     }
 
-    let placeholders = dates.iter().map(|_| "?").collect::<Vec<&str>>().join(",");
+    let json_dates = serde_json::to_string(&dates).map_err(|e| e.to_string())?;
     let sql = format!(
         "SELECT s.date, e.name as entry_name, c.name as category_name \
          FROM scans s \
          JOIN entries e ON s.code = e.code \
          JOIN categories c ON s.category_code = c.code \
-         WHERE s.scan_date IN ({}) \
+         WHERE s.scan_date IN (SELECT value FROM json_each(?1)) \
          ORDER BY s.date {}",
-        placeholders, ord
+        ord
     );
 
     let mut stmt = db.prepare(&sql).map_err(|e| e.to_string())?;
     
-    let params: Vec<&dyn rusqlite::ToSql> = dates.iter().map(|d| d as &dyn rusqlite::ToSql).collect();
     let scan_iter = stmt
-        .query_map(params.as_slice(), |row| {
+        .query_map(params![json_dates], |row| {
             Ok(Scan {
                 date: row.get(0)?,
                 entry_name: row.get(1)?,
@@ -190,24 +190,27 @@ pub fn bulk_delete_scans_by_dates(state: State<'_, AppState>, dates: Vec<String>
     }
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    let placeholders = dates.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("DELETE FROM scans WHERE scan_date IN ({})", placeholders);
+    let json_dates = serde_json::to_string(&dates).map_err(|e| e.to_string())?;
+    let sql = "DELETE FROM scans WHERE scan_date IN (SELECT value FROM json_each(?1))";
     
-    db.execute(&sql, rusqlite::params_from_iter(dates.iter()))
+    db.execute(sql, params![json_dates])
         .map_err(|_e| "Could not delete scans for the selected dates.".to_string())?;
 
     Ok(format!("Successfully deleted scans for {} dates.", dates.len()))
 }
 
+// FIXED: MT 7/7
 #[tauri::command]
-pub fn create_scan(state: State<'_, AppState>, code: String, category_code: String) -> Result<String, String> {
+pub fn create_scan(state: State<'_, AppState>, code: String, category_code: Option<String>) -> Result<String, String> {
     let mut db = state.db.lock().map_err(|e| e.to_string())?;
 
-    let last_scan: Option<i64> = db.query_row(
+    let last_scan_res: Result<Option<i64>, _> = db.query_row(
         "SELECT MAX(date) FROM scans WHERE code = ?1",
         params![&code],
         |row| row.get(0),
-    ).unwrap_or(None);
+    );
+
+    let last_scan = last_scan_res.map_err(|_| "Could not check for recent scans.".to_string())?;
 
     let now = chrono::Utc::now().timestamp_millis();
 
@@ -218,45 +221,58 @@ pub fn create_scan(state: State<'_, AppState>, code: String, category_code: Stri
         }
     }
 
-    let name: String = db.query_row(
+    let name_res: Result<String, _> = db.query_row(
         "SELECT name FROM entries WHERE code = ?1",
         params![&code],
         |row| row.get(0),
-    ).map_err(|_| "Invalid code.".to_string())?;
+    );
+
+    let name = match name_res {
+        Ok(n) => n,
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Err("Invalid code.".to_string()),
+        Err(e) => return Err(e.to_string()),
+    };
 
     let current_local = Local::now();
     let scan_date_formatted = current_local.format("%Y-%m-%d").to_string();
 
-    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let tx = db.transaction().map_err(|_| "Could not start transaction.".to_string())?;
     tx.execute(
         "INSERT INTO scans (code, date, scan_date, category_code) VALUES (?1, ?2, ?3, ?4)",
         params![code, now, scan_date_formatted, category_code],
     ).map_err(|_| "Could not record scan.".to_string())?;
 
-    tx.commit().map_err(|e| e.to_string())?;
+    tx.commit().map_err(|_| "Could not commit transaction.".to_string())?;
 
     Ok(format!("Successfully scanned code for {}.", name))
 }
 
+// FIXED: MT 7/7
 #[tauri::command]
 pub fn record_scan(
     state: State<'_, AppState>,
-    code: String,
-    category_code: String,
-    date: String,
-    time: String,
+    code: Option<String>,
+    category_code: Option<String>,
+    date: Option<String>,
+    time: Option<String>,
 ) -> Result<String, String> {
+    let code = code.unwrap_or_default();
+    let category_code = category_code.unwrap_or_default();
+    let date = date.unwrap_or_default();
+    let time = time.unwrap_or_default();
+
     if code.is_empty() || category_code.is_empty() || date.is_empty() || time.is_empty() {
         return Err("Code, category, date, and time are required.".to_string());
     }
 
     let parsed_date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|_| "Invalid date format".to_string())?;
-    let parsed_time = NaiveTime::parse_from_str(&time, "%H:%M:%S").map_err(|_| "Invalid time format".to_string())?;
+    let parsed_time = NaiveTime::parse_from_str(&time, "%H:%M:%S")
+        .or_else(|_| NaiveTime::parse_from_str(&time, "%H:%M"))
+        .map_err(|_| "Invalid time format".to_string())?;
     let datetime = parsed_date.and_time(parsed_time);
     
-    // Original express server did `new Date(year, month - 1, day, hours, minutes, seconds)`
-    // which operates in the local timezone.
-    let local_datetime = Local.from_local_datetime(&datetime).single().ok_or("Invalid local datetime".to_string())?;
+    // Use .latest() to gracefully handle ambiguous daylight saving transitions ("fall back")
+    let local_datetime = Local.from_local_datetime(&datetime).latest().ok_or("Invalid local datetime".to_string())?;
     let new_timestamp = local_datetime.timestamp_millis();
 
     if new_timestamp > Local::now().timestamp_millis() {
@@ -265,11 +281,17 @@ pub fn record_scan(
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
-    let name: String = db.query_row(
+    let name_res: Result<String, _> = db.query_row(
         "SELECT name FROM entries WHERE code = ?1",
         params![&code],
         |row| row.get(0),
-    ).map_err(|_| "Invalid code.".to_string())?;
+    );
+
+    let name = match name_res {
+        Ok(n) => n,
+        Err(rusqlite::Error::QueryReturnedNoRows) => return Err("Invalid code.".to_string()),
+        Err(e) => return Err(e.to_string()),
+    };
 
     let new_scan_date = parsed_date.format("%Y-%m-%d").to_string();
 
@@ -285,20 +307,25 @@ pub fn record_scan(
 pub fn update_scan(
     state: State<'_, AppState>,
     timestamp: String,
-    date: String,
-    time: String,
+    date: Option<String>,
+    time: Option<String>,
 ) -> Result<String, String> {
     let ts_int: i64 = timestamp.parse().map_err(|_| "Invalid timestamp".to_string())?;
+
+    let date = date.unwrap_or_default();
+    let time = time.unwrap_or_default();
 
     if date.is_empty() || time.is_empty() {
         return Err("Date and time are required.".to_string());
     }
 
     let parsed_date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|_| "Invalid date format".to_string())?;
-    let parsed_time = NaiveTime::parse_from_str(&time, "%H:%M:%S").map_err(|_| "Invalid time format".to_string())?;
+    let parsed_time = NaiveTime::parse_from_str(&time, "%H:%M:%S")
+        .or_else(|_| NaiveTime::parse_from_str(&time, "%H:%M"))
+        .map_err(|_| "Invalid time format".to_string())?;
     let datetime = parsed_date.and_time(parsed_time);
     
-    let local_datetime = Local.from_local_datetime(&datetime).single().ok_or("Invalid local datetime".to_string())?;
+    let local_datetime = Local.from_local_datetime(&datetime).latest().ok_or("Invalid local datetime".to_string())?;
     let new_timestamp = local_datetime.timestamp_millis();
 
     if new_timestamp > Local::now().timestamp_millis() {
@@ -333,11 +360,9 @@ pub fn get_scans_for_export(
     if let Some(cats) = categories {
         let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
         if !cat_list.is_empty() {
-            let placeholders = cat_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            where_clauses.push(format!("s.category_code IN ({})", placeholders));
-            for cat in cat_list {
-                params_vals.push(cat.to_string());
-            }
+            let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
+            where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
+            params_vals.push(json_cats);
         }
     }
 
