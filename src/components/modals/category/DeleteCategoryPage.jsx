@@ -12,10 +12,11 @@ const DeleteCategoryPage = ({ statusMessage, setStatusMessage, onClose, categori
         const codesToDelete = categories.map(category => category.code);
         try {
             let message;
-            if (codesToDelete.length > 1) {
-                message = await invoke('bulk_delete_categories', { codes: codesToDelete });
-            } else {
+            // Route empty arrays to bulk_delete_categories so the Rust backend gracefully throws its "Invalid request." error
+            if (codesToDelete.length === 1) {
                 message = await invoke('delete_category', { code: codesToDelete[0] });
+            } else {
+                message = await invoke('bulk_delete_categories', { codes: codesToDelete });
             }
             setStatusMessage(message);
             onSuccess();
@@ -48,9 +49,12 @@ const DeleteCategoryPage = ({ statusMessage, setStatusMessage, onClose, categori
             <h1 className="text-3xl font-bold mb-6 text-center text-[var(--theme-text)]">{title}</h1>
             <p className="text-lg text-[var(--theme-text)] opacity-75 text-center mb-8">
                 <span>
+                    {/* FIXED: MT 7/9 - Handle 0 category count grammar */}
                     {categoryCount > 1
                         ? `Are you sure you want to delete ${categoryCount} categories? `
-                        : `Are you sure you want to delete 1 category? `
+                        : categoryCount === 1
+                            ? `Are you sure you want to delete 1 category? `
+                            : `Are you sure you want to delete 0 categories? `
                     }
                 </span>
                 <span className="font-semibold text-red-500">

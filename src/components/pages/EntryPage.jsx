@@ -406,7 +406,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
+            const { default: autoTable } = await import('jspdf-autotable');
 
             const filePath = await save({
                 defaultPath: `${entry.name.replace(/\s+/g, '_')}_${entry.code}.pdf`,
@@ -434,7 +434,7 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
                 return [entry.name, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.category];
             });
 
-            doc.autoTable({
+            autoTable(doc, {
                 head: [['Name', 'Date', 'Time', 'Category']],
                 body: tableData,
                 margin: { top: 30 }

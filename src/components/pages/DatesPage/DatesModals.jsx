@@ -18,6 +18,7 @@ const DatesModals = ({
     datesToDelete,
     allCategories,
     selectedCategory,
+    disableCurrentDelete,
 }) => {
     return (
         <>
@@ -36,6 +37,7 @@ const DatesModals = ({
                     onClose={modalHandlers.closeDeleteOptionsModal}
                     onDeleteCurrent={modalHandlers.handleDeleteCurrentPage}
                     onDeleteSelected={modalHandlers.handleDeleteAllSelected}
+                    disableCurrent={disableCurrentDelete}
                 />
             </ModalWrapper>
 

@@ -31,13 +31,14 @@ pub struct EntryScansResponse {
     pub total: i64,
 }
 
+// FIXED: MT 7/9
 #[tauri::command]
 pub fn get_dates(
     state: State<'_, AppState>,
     order: Option<String>,
     _search: Option<String>,
-    page: Option<i32>,
-    limit: Option<i32>,
+    page: Option<serde_json::Value>,
+    limit: Option<serde_json::Value>,
     start_date: Option<String>,
     end_date: Option<String>,
     days: Option<String>,
@@ -49,25 +50,36 @@ pub fn get_dates(
         return Err("Invalid order parameter.".to_string());
     }
 
-    let p = page.unwrap_or(1);
-    let l = limit.unwrap_or(10);
+    // FIX: Allow parsing both numbers and strings to prevent strict IPC deserialization panics
+    let p = match page {
+        Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(1) as i32,
+        Some(serde_json::Value::String(s)) => s.parse::<i32>().unwrap_or(1),
+        _ => 1,
+    };
+    let l = match limit {
+        Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(10) as i32,
+        Some(serde_json::Value::String(s)) => s.parse::<i32>().unwrap_or(10),
+        _ => 10,
+    };
     let offset = (p - 1) * l;
 
     let mut where_clauses = Vec::new();
     let mut params_vals = Vec::new();
 
-    if let Some(start) = start_date {
+    // FIX: Ignore empty strings to prevent injecting invalid SQL filters (matching JS falsiness)
+    if let Some(start) = start_date.filter(|s| !s.is_empty()) {
         where_clauses.push("scan_date >= ?".to_string());
         params_vals.push(start);
     }
-    if let Some(end) = end_date {
+    if let Some(end) = end_date.filter(|s| !s.is_empty()) {
         where_clauses.push("scan_date <= ?".to_string());
         params_vals.push(end);
     }
-    if let Some(d_str) = days {
+    // FIX: Added .trim() to replicate lenient parseInt whitespace handling
+    if let Some(d_str) = days.filter(|s| !s.is_empty()) {
         let day_list: Vec<i32> = d_str
             .split(',')
-            .filter_map(|s| s.parse::<i32>().ok())
+            .filter_map(|s| s.trim().parse::<i32>().ok())
             .filter(|&d| d >= 0 && d <= 6)
             .collect();
         if !day_list.is_empty() {
@@ -120,6 +132,7 @@ pub fn get_dates(
     })
 }
 
+// FIXED: MT 7/9
 #[tauri::command]
 pub fn get_date_range(state: State<'_, AppState>) -> Result<DateRangeResponse, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -199,7 +212,10 @@ pub fn get_entry_scans(
         }
     }
     if let Some(cats) = categories {
-        if !cats.is_empty() {
+        // FIX: Return 0 results when no categories are selected (instead of returning all)
+        if cats.is_empty() {
+            where_clauses.push("1 = 0".to_string());
+        } else {
             let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
             if !cat_list.is_empty() {
                 let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;

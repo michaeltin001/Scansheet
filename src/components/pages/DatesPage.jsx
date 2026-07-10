@@ -411,7 +411,6 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
         try {
             const { save } = await import('@tauri-apps/plugin-dialog');
             const { writeFile } = await import('@tauri-apps/plugin-fs');
-            const { invoke } = await import('@tauri-apps/api/core');
 
             const filePath = await save({
                 defaultPath: 'dates_export.csv',
@@ -422,22 +421,25 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 return;
             }
 
-            const scans = await invoke('get_scans_by_dates', { dates: datesToExport, order });
-            
-            let csvContent = '"Name","Date","Time","Category"\n';
-            scans.forEach(scan => {
-                const d = new Date(scan.date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                csvContent += `"${scan.entryName}","${year}-${month}-${day}","${hours}:${minutes}:${seconds}","${scan.category}"\n`;
+            // FIX: Restored original functionality to export dates instead of scans
+            const sortedDates = [...datesToExport].sort((a, b) => {
+                const dateA = new Date(a);
+                const dateB = new Date(b);
+                return order === 'ASC' ? dateA - dateB : dateB - dateA;
+            });
+
+            let csvContent = '"Date"\n';
+            sortedDates.forEach(dateStr => {
+                 const date = new Date(dateStr);
+                 const correctedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+                 const month = String(correctedDate.getMonth() + 1).padStart(2, '0');
+                 const day = String(correctedDate.getDate()).padStart(2, '0');
+                 const year = correctedDate.getFullYear();
+                 csvContent += `"${month}/${day}/${year}"\n`;
             });
 
             await writeFile(filePath, new TextEncoder().encode(csvContent));
-            setStatusMessage(`Successfully exported scans for ${datesToExport.length} dates.`);
+            setStatusMessage(`Successfully exported ${datesToExport.length} dates.`);
         } catch (error) {
             setStatusMessage('Could not export dates to CSV: ' + error);
         }
@@ -454,9 +456,8 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
         try {
             const { save } = await import('@tauri-apps/plugin-dialog');
             const { writeFile } = await import('@tauri-apps/plugin-fs');
-            const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
+            const { default: autoTable } = await import('jspdf-autotable');
 
             const filePath = await save({
                 defaultPath: 'dates_export.pdf',
@@ -467,31 +468,56 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 return;
             }
 
-            const scans = await invoke('get_scans_by_dates', { dates: datesToExport, order });
-            
-            const doc = new jsPDF();
-            
-            const tableData = scans.map(scan => {
-                const d = new Date(scan.date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                return [scan.entryName, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.category];
+            // FIX: Restored original functionality to export dates instead of scans
+            const sortedDates = [...datesToExport].sort((a, b) => {
+                const dateA = new Date(a);
+                const dateB = new Date(b);
+                return order === 'ASC' ? dateA - dateB : dateB - dateA;
             });
 
-            doc.autoTable({
-                head: [['Name', 'Date', 'Time', 'Category']],
+            const doc = new jsPDF();
+            
+            const tableData = sortedDates.map(dateStr => {
+                 const date = new Date(dateStr);
+                 const correctedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+                 const month = String(correctedDate.getMonth() + 1).padStart(2, '0');
+                 const day = String(correctedDate.getDate()).padStart(2, '0');
+                 const year = correctedDate.getFullYear();
+                 return [`${month}/${day}/${year}`];
+            });
+
+            autoTable(doc, {
+                head: [['Date']],
                 body: tableData,
                 margin: { top: 30 }
             });
 
+            // Append summary page
+            doc.addPage();
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const dayOfMonth = String(now.getDate()).padStart(2, '0');
+            const reportDate = `${month}/${dayOfMonth}/${year}`;
+            
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const reportTime = `${hours}:${minutes}`;
+
+            let yOffset = 20;
+            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, yOffset);
+            yOffset += 10;
+            doc.text(`Successfully exported ${datesToExport.length} dates.`, 14, yOffset);
+            yOffset += 10;
+            doc.text("Scansheet v1.0.0", 14, yOffset);
+
             const arrayBuffer = doc.output('arraybuffer');
             await writeFile(filePath, new Uint8Array(arrayBuffer));
             
-            setStatusMessage(`Successfully exported scans for ${datesToExport.length} dates.`);
+            setStatusMessage(`Successfully exported ${datesToExport.length} dates.`);
         } catch (error) {
             setStatusMessage('Could not export dates to PDF: ' + error);
         }
@@ -683,6 +709,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 datesToDelete={datesToDelete}
                 allCategories={allCategories}
                 selectedCategory={selectedCategory}
+                disableCurrentDelete={selectedDatesOnCurrentPage.length === 0}
             />
 
             <DatesMenus

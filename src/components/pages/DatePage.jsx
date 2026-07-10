@@ -272,7 +272,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
         try {
             const { jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
+            const { default: autoTable } = await import('jspdf-autotable');
 
             if (compareFilePath) {
                 const results = await invoke('get_comparison_export', {
@@ -294,7 +294,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                     ]);
                 });
 
-                doc.autoTable({
+                autoTable(doc, {
                     head: [tableColumn],
                     body: tableRows,
                     startY: 20,
@@ -308,6 +308,14 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                 
                 doc.setFontSize(10);
                 doc.text(`Generated comparison report on ${reportDate} at ${reportTime}.`, 14, 10);
+
+                const finalY = doc.lastAutoTable.finalY || 20;
+                let yPos = finalY + 10;
+                doc.text(`Successfully compared against the following file: ${compareFileName || 'Unknown'}.`, 14, yPos);
+                yPos += 8;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text("Scansheet v1.0.0", 14, yPos);
 
                 const pdfBytes = doc.output('arraybuffer');
                 
@@ -346,17 +354,19 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                     
                     const hours = String(d.getHours()).padStart(2, '0');
                     const minutes = String(d.getMinutes()).padStart(2, '0');
-                    const time = `${hours}:${minutes}`;
+                    const seconds = String(d.getSeconds()).padStart(2, '0');
+                    // FIX: Restored seconds precision to align with original server.js formatting.
+                    const time = `${hours}:${minutes}:${seconds}`;
 
                     tableRows.push([
-                        row.entry_name,
+                        row.entryName,
                         csvDate,
                         time,
-                        row.category_name
+                        row.category
                     ]);
                 });
 
-                doc.autoTable({
+                autoTable(doc, {
                     head: [tableColumn],
                     body: tableRows,
                     startY: 20,
@@ -370,6 +380,22 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                 
                 doc.setFontSize(10);
                 doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 10);
+
+                const finalY = doc.lastAutoTable.finalY || 20;
+                let yPos = finalY + 10;
+                doc.text(`Successfully exported ${results.length} scans, using the following options:`, 14, yPos);
+                yPos += 6;
+                let categoryString = 'All';
+                if (categories) {
+                    categoryString = Array.from(selectedCategories)
+                        .map(code => allCategories.find(c => c.code === code)?.name || 'Unknown')
+                        .join(', ');
+                }
+                doc.text(`Categories: ${categoryString}`, 14, yPos);
+                yPos += 8;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text("Scansheet v1.0.0", 14, yPos);
 
                 const pdfBytes = doc.output('arraybuffer');
                 
@@ -387,7 +413,7 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                 }
             }
         } catch (error) {
-            setStatusMessage('Could not generate PDF.');
+            setStatusMessage(error ? error.toString() : 'Could not generate PDF.');
         } finally {
             setIsDownloadMenuOpen(false);
         }
@@ -446,9 +472,10 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                     const hours = String(d.getHours()).padStart(2, '0');
                     const minutes = String(d.getMinutes()).padStart(2, '0');
                     const seconds = String(d.getSeconds()).padStart(2, '0');
+                    // FIX: Restored seconds precision to align with original server.js formatting.
                     const time = `${hours}:${minutes}:${seconds}`;
 
-                    csvString += `"${row.entry_name}","${csvDate}","${time}","${row.category_name}"\n`;
+                    csvString += `"${row.entryName}","${csvDate}","${time}","${row.category}"\n`;
                 });
 
                 const { save } = await import('@tauri-apps/plugin-dialog');

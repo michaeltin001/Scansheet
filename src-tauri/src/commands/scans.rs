@@ -20,6 +20,7 @@ pub struct ScansResponse {
     pub total: i64,
 }
 
+// FIXED: MT 7/9
 #[tauri::command]
 pub fn get_scans(
     state: State<'_, AppState>,
@@ -44,11 +45,16 @@ pub fn get_scans(
     let mut params_vals: Vec<String> = vec![date.clone()];
 
     if let Some(cats) = categories {
-        let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
-        if !cat_list.is_empty() {
-            let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
-            where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
-            params_vals.push(json_cats);
+        // FIX: Return 0 results when no categories are selected (instead of returning all)
+        if cats.is_empty() {
+            where_clauses.push("1 = 0".to_string());
+        } else {
+            let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
+            if !cat_list.is_empty() {
+                let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
+                where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
+                params_vals.push(json_cats);
+            }
         }
     }
 
@@ -126,11 +132,12 @@ pub fn delete_scan(state: State<'_, AppState>, timestamp: i64) -> Result<String,
     Ok("Successfully deleted scan.".to_string())
 }
 
+// FIXED: MT 7/9
 #[tauri::command]
 pub fn delete_scans_by_date(state: State<'_, AppState>, date: String) -> Result<String, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     db.execute("DELETE FROM scans WHERE scan_date = ?1", params![date])
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Could not delete scans for this date.".to_string())?;
     
     Ok(format!("Successfully deleted all scans for {}.", date))
 }
@@ -358,11 +365,16 @@ pub fn get_scans_for_export(
     let mut params_vals: Vec<String> = vec![date];
 
     if let Some(cats) = categories {
-        let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
-        if !cat_list.is_empty() {
-            let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
-            where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
-            params_vals.push(json_cats);
+        // FIX: Return 0 results when no categories are selected (instead of returning all)
+        if cats.is_empty() {
+            where_clauses.push("1 = 0".to_string());
+        } else {
+            let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
+            if !cat_list.is_empty() {
+                let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
+                where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
+                params_vals.push(json_cats);
+            }
         }
     }
 
@@ -439,13 +451,16 @@ pub fn get_comparison_export(
 ) -> Result<Vec<ComparisonResult>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
-    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_path(&compare_file_path).map_err(|e| e.to_string())?;
+    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_path(&compare_file_path).map_err(|_| "Could not read comparison file.".to_string())?;
     let mut imported_names = Vec::new();
     for result in reader.records() {
         let record = result.map_err(|e| e.to_string())?;
         if let Some(name) = record.get(0) {
-            if !name.trim().is_empty() {
-                imported_names.push(name.trim().to_string());
+            // Strip the \u{FEFF} BOM that Excel sometimes prefixes to the first cell
+            // FIX: Removed .trim() to preserve intentional trailing spaces for literal database matching
+            let name_trimmed = name.trim_start_matches('\u{FEFF}');
+            if !name_trimmed.is_empty() {
+                imported_names.push(name_trimmed.to_string());
             }
         }
     }
@@ -454,12 +469,15 @@ pub fn get_comparison_export(
     let mut params_vals: Vec<String> = vec![date];
 
     if let Some(cats) = categories {
-        let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
-        if !cat_list.is_empty() {
-            let placeholders = cat_list.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            where_clauses.push(format!("s.category_code IN ({})", placeholders));
-            for cat in cat_list {
-                params_vals.push(cat.to_string());
+        if cats.is_empty() {
+            where_clauses.push("1 = 0".to_string());
+        } else {
+            let cat_list: Vec<&str> = cats.split(',').filter(|c| !c.is_empty()).collect();
+            if !cat_list.is_empty() {
+                // FIX: Refactored to use json_each to prevent SQLITE_MAX_VARIABLE_NUMBER limits
+                let json_cats = serde_json::to_string(&cat_list).map_err(|e| e.to_string())?;
+                where_clauses.push("s.category_code IN (SELECT value FROM json_each(?))".to_string());
+                params_vals.push(json_cats);
             }
         }
     }
@@ -501,7 +519,9 @@ pub fn get_comparison_export(
     let mut results = Vec::new();
     for name in imported_names {
         if let Some(timestamp) = scan_map.get(&name) {
-            let local_time = Local.timestamp_millis_opt(*timestamp).single().ok_or("Invalid timestamp")?;
+            // FIX: Used .latest() instead of .single() to prevent crashes during DST fallback transitions
+            let local_time = Local.timestamp_millis_opt(*timestamp).latest().ok_or("Invalid timestamp")?;
+            // FIX: Restored seconds precision (%H:%M:%S) to align with original server.js formatting.
             let time_str = local_time.format("%H:%M:%S").to_string();
             results.push(ComparisonResult {
                 name,

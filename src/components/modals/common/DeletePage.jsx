@@ -9,14 +9,17 @@ const DeletePage = ({
     title,
     onClose,
     onDeleteCurrent,
-    onDeleteSelected
+    onDeleteSelected,
+    disableCurrent
 }) => {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 e.stopPropagation();
-                onDeleteCurrent();
+                if (!disableCurrent) {
+                    onDeleteCurrent();
+                }
             }
         };
 
@@ -25,7 +28,7 @@ const DeletePage = ({
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onDeleteCurrent]);
+    }, [onDeleteCurrent, disableCurrent]);
 
     return (
         <div
@@ -44,9 +47,11 @@ const DeletePage = ({
                 Please choose a deletion option.
             </p>
             <div className="w-full max-w-sm flex flex-col gap-4">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                {/* Disabled if there are no selections on the current paginated view to prevent null payload errors */}
+                <motion.div whileHover={{ scale: disableCurrent ? 1 : 1.05 }} whileTap={{ scale: disableCurrent ? 1 : 0.95 }}>
                     <md-filled-button
-                        onClick={onDeleteCurrent}
+                        onClick={disableCurrent ? undefined : onDeleteCurrent}
+                        disabled={disableCurrent ? true : undefined}
                         class="w-full"
                         style={{ '--md-sys-color-primary': '#ef4444' }}
                     >

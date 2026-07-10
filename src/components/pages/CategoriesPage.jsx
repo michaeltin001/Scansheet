@@ -363,7 +363,7 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
                 fetchCategories();
             }
         } catch (error) {
-            setStatusMessage('Could not import categories: ' + error);
+            setStatusMessage(error);
         }
     };
 
@@ -373,7 +373,8 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
 
     const handleExportCSV = async (codesToExport) => {
         if (!codesToExport || codesToExport.length === 0) {
-            setStatusMessage("No categories selected for download.");
+            // FIX: Align error string with original Node.js implementation
+            setStatusMessage("Invalid request.");
             return;
         }
 
@@ -400,15 +401,27 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
 
             const categories = await invoke('get_categories_by_codes', { codes: codesToExport, sortBy, order });
             
-            let csvContent = '"Name","Code"\n';
+            // FIX: Ported original formatting logic to restore date export
+            const formatDateForDB = (date) => {
+                const d = new Date(date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            
+            // FIX: Changed CSV headers and content to export Date instead of Code
+            let csvContent = '"Name","Date"\n';
             categories.forEach(category => {
-                csvContent += `"${category.name}","${category.code}"\n`;
+                const dateStr = formatDateForDB(category.date);
+                csvContent += `"${category.name}","${dateStr}"\n`;
             });
 
             await writeFile(filePath, new TextEncoder().encode(csvContent));
             setStatusMessage(`Successfully exported ${categories.length} categories.`);
         } catch (error) {
-            setStatusMessage('Could not download categories: ' + error);
+            // FIX: Pass raw error through without prepending text
+            setStatusMessage(error);
         }
     };
 
@@ -432,7 +445,7 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
+            const { default: autoTable } = await import('jspdf-autotable');
 
             const filePath = await save({
                 defaultPath: 'categories.pdf',
@@ -445,12 +458,18 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
             
             const doc = new jsPDF();
             
+            // Fix: Format date column properly to match original backend format
             const tableData = categories.map(category => {
-                return [category.name, category.code];
+                const d = new Date(category.date);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                const date = `${month}/${dayOfMonth}/${year}`;
+                return [category.name, date];
             });
 
-            doc.autoTable({
-                head: [['Name', 'Code']],
+            autoTable(doc, {
+                head: [['Name', 'Date']],
                 body: tableData,
                 margin: { top: 30 }
             });
@@ -461,9 +480,15 @@ const CategoriesPage = ({ statusMessage, setStatusMessage }) => {
             const dayOfMonth = String(now.getDate()).padStart(2, '0');
             const reportDate = `${month}/${dayOfMonth}/${year}`;
             
+            // Fix: Include report generation time formatted as HH:MM:SS
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const reportTime = `${hours}:${minutes}:${seconds}`;
+            
             doc.addPage();
             doc.setFontSize(12);
-            doc.text(`Generated report on ${reportDate}.`, 14, 20);
+            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 20);
             doc.text(`Successfully exported ${categories.length} categories.`, 14, 30);
             doc.text("Scansheet v1.0.0", 14, 40);
 
