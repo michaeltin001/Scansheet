@@ -406,8 +406,6 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
-            const { default: autoTable } = await import('jspdf-autotable');
-
             const filePath = await save({
                 defaultPath: `${entry.name.replace(/\s+/g, '_')}_${entry.code}.pdf`,
                 filters: [{ name: 'PDF', extensions: ['pdf'] }]
@@ -421,24 +419,78 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             const response = await invoke('get_entry_scans', requestBody);
             const scans = response.data;
             
-            const doc = new jsPDF();
-            
-            const tableData = scans.map(scan => {
-                const d = new Date(scan.date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                const seconds = String(d.getSeconds()).padStart(2, '0');
-                return [entry.name, `${month}/${day}/${year}`, `${hours}:${minutes}:${seconds}`, scan.category];
-            });
+            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+            doc.setLineWidth(1);
 
-            autoTable(doc, {
-                head: [['Name', 'Date', 'Time', 'Category']],
-                body: tableData,
-                margin: { top: 30 }
-            });
+            const generateTable = (doc, tableRows) => {
+                let tableTop = 72;
+                const nameX = 72, dateX = 240, timeX = 340, categoryX = 400;
+                const tableWidth = 478; // Adjusted width as requested
+                const rowHeight = 25;
+                let y = tableTop;
+
+                const drawPage = (isFirstPage) => {
+                    if (!isFirstPage) {
+                        doc.addPage();
+                        tableTop = 72;
+                        y = tableTop;
+                    }
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.text('Name', nameX, y + 6, { baseline: 'top' });
+                    doc.text('Date', dateX, y + 6, { baseline: 'top' });
+                    doc.text('Time', timeX, y + 6, { baseline: 'top' });
+                    doc.text('Category', categoryX, y + 6, { baseline: 'top' });
+                    
+                    doc.line(nameX - 10, y, nameX - 10 + tableWidth, y);
+                    doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                    
+                    y += rowHeight;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(10);
+                };
+
+                drawPage(true);
+
+                tableRows.forEach((row, index) => {
+                    if (index > 0 && index % 25 === 0) {
+                        doc.line(nameX - 10, tableTop, nameX - 10, y);
+                        doc.line(dateX - 10, tableTop, dateX - 10, y);
+                        doc.line(timeX - 10, tableTop, timeX - 10, y);
+                        doc.line(categoryX - 10, tableTop, categoryX - 10, y);
+                        doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                        
+                        drawPage(false);
+                    }
+
+                    const d = new Date(row.date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                    const date = `${month}/${dayOfMonth}/${year}`;
+                    
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    const seconds = String(d.getSeconds()).padStart(2, '0');
+                    const time = `${hours}:${minutes}:${seconds}`;
+
+                    doc.text(entry.name, nameX, y + 6, { baseline: 'top' });
+                    doc.text(date, dateX, y + 6, { baseline: 'top' });
+                    doc.text(time, timeX, y + 6, { baseline: 'top' });
+                    doc.text(row.category, categoryX, y + 6, { baseline: 'top' });
+                    
+                    doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                    y += rowHeight;
+                });
+
+                doc.line(nameX - 10, tableTop, nameX - 10, y);
+                doc.line(dateX - 10, tableTop, dateX - 10, y);
+                doc.line(timeX - 10, tableTop, timeX - 10, y);
+                doc.line(categoryX - 10, tableTop, categoryX - 10, y);
+                doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+            };
+
+            generateTable(doc, scans);
 
             doc.addPage();
             
@@ -456,22 +508,32 @@ const EntryPage = ({ statusMessage, setStatusMessage }) => {
             const formattedStartDate = formatYMDtoMDY(startDate);
             const formattedEndDate = formatYMDtoMDY(endDate);
             
-            let y = 30;
+            let yOffset = 72;
             
             const now = new Date();
             const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
             const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-            doc.setFontSize(10);
-            doc.text(`Generated report for ${entry.name} on ${reportDate} at ${reportTime}.`, 14, y);
-            doc.text(`Successfully exported ${scans.length} scans, using the following options:`, 14, y + 10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Day(s): ${dayString}`, 14, y + 16);
-            doc.text(`Categories: ${categoryString}`, 14, y + 22);
-            doc.text(`Date Range: ${formattedStartDate} to ${formattedEndDate}`, 14, y + 28);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(12);
-            doc.text("Scansheet v1.0.0", 14, y + 42);
+            doc.text(`Generated report for ${entry.name} on ${reportDate} at ${reportTime}.`, 72, yOffset, { baseline: 'top' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            
+            yOffset += 14.4;
+            doc.text(`Successfully exported ${scans.length} scans, using the following options:`, 72, yOffset, { baseline: 'top' });
+            
+            yOffset += 14.4;
+            doc.text(`Day(s): ${dayString}`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text(`Categories: ${categoryString}`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text(`Date Range: ${formattedStartDate} to ${formattedEndDate}`, 72, yOffset, { baseline: 'top' });
+            
+            yOffset += 28.8;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text("Scansheet v1.0.0", 72, yOffset, { baseline: 'top' });
 
             const arrayBuffer = doc.output('arraybuffer');
             await writeFile(filePath, new Uint8Array(arrayBuffer));

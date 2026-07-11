@@ -463,8 +463,6 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const { invoke } = await import('@tauri-apps/api/core');
             const { jsPDF } = await import('jspdf');
-            const { default: autoTable } = await import('jspdf-autotable');
-
             const filePath = await save({
                 defaultPath: 'entries.pdf',
                 filters: [{ name: 'PDF', extensions: ['pdf'] }]
@@ -474,34 +472,98 @@ const EntriesPage = ({ statusMessage, setStatusMessage }) => {
 
             const entries = await invoke('get_entries_by_codes', { codes: codesToExport, sortBy, order, includeImage: false });
             
-            const doc = new jsPDF();
-            
-            const tableData = entries.map(entry => {
-                const d = new Date(entry.date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return [entry.name, entry.code, `${month}/${day}/${year}`];
-            });
+            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+            doc.setLineWidth(1);
 
-            autoTable(doc, {
-                head: [['Name', 'Code', 'Date']],
-                body: tableData,
-                margin: { top: 30 }
-            });
+            const generateTable = (doc, tableRows) => {
+                let tableTop = 72;
+                const nameX = 72;
+                const codeX = 250;
+                const dateX = 450;
+                const tableWidth = 478;
+                const rowHeight = 25;
+                let y = tableTop;
+
+                const drawPage = (isFirstPage) => {
+                    if (!isFirstPage) {
+                        doc.addPage();
+                        tableTop = 72;
+                        y = tableTop;
+                    }
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.text('Name', nameX, y + 6, { baseline: 'top' });
+                    doc.text('Code', codeX, y + 6, { baseline: 'top' });
+                    doc.text('Date', dateX, y + 6, { baseline: 'top' });
+                    
+                    doc.line(nameX - 10, y, nameX - 10 + tableWidth, y);
+                    doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+
+                    y += rowHeight;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(12);
+                };
+
+                drawPage(true);
+
+                tableRows.forEach((row, index) => {
+                    if (index > 0 && index % 25 === 0) {
+                        doc.line(nameX - 10, tableTop, nameX - 10, y);
+                        doc.line(codeX - 10, tableTop, codeX - 10, y);
+                        doc.line(dateX - 10, tableTop, dateX - 10, y);
+                        doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                        
+                        drawPage(false);
+                    }
+
+                    const d = new Date(row.date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                    const date = `${month}/${dayOfMonth}/${year}`;
+                    
+                    doc.setFontSize(10);
+                    doc.text(row.name, nameX, y + 6, { baseline: 'top' });
+                    doc.setFontSize(8);
+                    doc.text(row.code, codeX, y + 6, { baseline: 'top' });
+                    doc.setFontSize(10);
+                    doc.text(date, dateX, y + 6, { baseline: 'top' });
+                    
+                    doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                    y += rowHeight;
+                });
+
+                doc.line(nameX - 10, tableTop, nameX - 10, y);
+                doc.line(codeX - 10, tableTop, codeX - 10, y);
+                doc.line(dateX - 10, tableTop, dateX - 10, y);
+                doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+            };
+
+            generateTable(doc, entries);
+
+            // Append summary page
+            doc.addPage();
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
 
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const dayOfMonth = String(now.getDate()).padStart(2, '0');
             const reportDate = `${month}/${dayOfMonth}/${year}`;
-            const reportTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
             
-            doc.addPage();
-            doc.setFontSize(12);
-            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 20);
-            doc.text(`Successfully exported ${entries.length} entries.`, 14, 30);
-            doc.text("Scansheet v1.0.0", 14, 40);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const reportTime = `${hours}:${minutes}:${seconds}`;
+
+            let yOffset = 72;
+            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text(`Successfully exported ${entries.length} entries.`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text("Scansheet v1.0.0", 72, yOffset, { baseline: 'top' });
 
             const arrayBuffer = doc.output('arraybuffer');
             await writeFile(filePath, new Uint8Array(arrayBuffer));

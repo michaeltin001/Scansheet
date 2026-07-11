@@ -272,7 +272,6 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
 
         try {
             const { jsPDF } = await import('jspdf');
-            const { default: autoTable } = await import('jspdf-autotable');
 
             if (compareFilePath) {
                 const results = await invoke('get_comparison_export', {
@@ -281,41 +280,91 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                     compareFilePath
                 });
 
-                const doc = new jsPDF();
-                
-                const tableColumn = ["Name", "Present", "Timestamp"];
-                const tableRows = [];
+                const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+                doc.setLineWidth(1);
 
-                results.forEach(row => {
-                    tableRows.push([
-                        row.name,
-                        row.present,
-                        row.timestamp
-                    ]);
-                });
+                const generateTable = (doc, tableRows) => {
+                    let tableTop = 72;
+                    const nameX = 72, presentX = 350, timeX = 450;
+                    const tableWidth = 478;
+                    const rowHeight = 25;
+                    let y = tableTop;
 
-                autoTable(doc, {
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 20,
-                    styles: { fontSize: 10 },
-                    headStyles: { fillColor: [41, 128, 185] }
-                });
+                    const drawPage = (isFirstPage) => {
+                        if (!isFirstPage) {
+                            doc.addPage();
+                            tableTop = 72;
+                            y = tableTop;
+                        }
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(12);
+                        doc.text('Name', nameX, y + 6, { baseline: 'top' });
+                        doc.text('Present', presentX, y + 6, { baseline: 'top' });
+                        doc.text('Timestamp', timeX, y + 6, { baseline: 'top' });
+                        
+                        doc.line(nameX - 10, y, nameX - 10 + tableWidth, y);
+                        doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                        
+                        y += rowHeight;
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(10);
+                    };
 
-                const now = new Date();
-                const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
-                const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                
-                doc.setFontSize(10);
-                doc.text(`Generated comparison report on ${reportDate} at ${reportTime}.`, 14, 10);
+                    drawPage(true);
 
-                const finalY = doc.lastAutoTable.finalY || 20;
-                let yPos = finalY + 10;
-                doc.text(`Successfully compared against the following file: ${compareFileName || 'Unknown'}.`, 14, yPos);
-                yPos += 8;
+                    tableRows.forEach((row, index) => {
+                        if (index > 0 && index % 25 === 0) {
+                            doc.line(nameX - 10, tableTop, nameX - 10, y);
+                            doc.line(presentX - 10, tableTop, presentX - 10, y);
+                            doc.line(timeX - 10, tableTop, timeX - 10, y);
+                            doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                            
+                            drawPage(false);
+                        }
+
+                        doc.text(row.name, nameX, y + 6, { baseline: 'top' });
+                        doc.text(row.present, presentX, y + 6, { baseline: 'top' });
+                        doc.text(row.timestamp, timeX, y + 6, { baseline: 'top' });
+                        
+                        doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                        y += rowHeight;
+                    });
+
+                    doc.line(nameX - 10, tableTop, nameX - 10, y);
+                    doc.line(presentX - 10, tableTop, presentX - 10, y);
+                    doc.line(timeX - 10, tableTop, timeX - 10, y);
+                    doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                };
+
+                generateTable(doc, results);
+
+                doc.addPage();
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
-                doc.text("Scansheet v1.0.0", 14, yPos);
+
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const dayOfMonth = String(now.getDate()).padStart(2, '0');
+                const reportDate = `${month}/${dayOfMonth}/${year}`;
+                
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                const reportTime = `${hours}:${minutes}:${seconds}`;
+
+                let yOffset = 72;
+                doc.text(`Generated comparison report on ${reportDate} at ${reportTime}.`, 72, yOffset, { baseline: 'top' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                
+                yOffset += 14.4;
+                doc.text(`Successfully compared against the following file: ${compareFileName || 'Unknown'}.`, 72, yOffset, { baseline: 'top' });
+                
+                yOffset += 14.4;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text("Scansheet v1.0.0", 72, yOffset, { baseline: 'top' });
 
                 const pdfBytes = doc.output('arraybuffer');
                 
@@ -340,62 +389,108 @@ const DatePage = ({ statusMessage, setStatusMessage }) => {
                     alphabetize
                 });
 
-                const doc = new jsPDF();
+                const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+                doc.setLineWidth(1);
+
+                const generateTable = (doc, tableRows) => {
+                    let tableTop = 72;
+                    const nameX = 72, dateX = 240, timeX = 340, categoryX = 400;
+                    const tableWidth = 478; // Adjusted to match general parity
+                    const rowHeight = 25;
+                    let y = tableTop;
+
+                    const drawPage = (isFirstPage) => {
+                        if (!isFirstPage) {
+                            doc.addPage();
+                            tableTop = 72;
+                            y = tableTop;
+                        }
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(12);
+                        doc.text('Name', nameX, y + 6, { baseline: 'top' });
+                        doc.text('Date', dateX, y + 6, { baseline: 'top' });
+                        doc.text('Time', timeX, y + 6, { baseline: 'top' });
+                        doc.text('Category', categoryX, y + 6, { baseline: 'top' });
+                        
+                        doc.line(nameX - 10, y, nameX - 10 + tableWidth, y);
+                        doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                        
+                        y += rowHeight;
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(10);
+                    };
+
+                    drawPage(true);
+
+                    tableRows.forEach((row, index) => {
+                        if (index > 0 && index % 25 === 0) {
+                            doc.line(nameX - 10, tableTop, nameX - 10, y);
+                            doc.line(dateX - 10, tableTop, dateX - 10, y);
+                            doc.line(timeX - 10, tableTop, timeX - 10, y);
+                            doc.line(categoryX - 10, tableTop, categoryX - 10, y);
+                            doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                            
+                            drawPage(false);
+                        }
+
+                        const d = new Date(row.date);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const dayOfMonth = String(d.getDate()).padStart(2, '0');
+                        const date = `${month}/${dayOfMonth}/${year}`;
+                        
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        const seconds = String(d.getSeconds()).padStart(2, '0');
+                        const time = `${hours}:${minutes}:${seconds}`;
+
+                        doc.text(row.entryName, nameX, y + 6, { baseline: 'top' });
+                        doc.text(date, dateX, y + 6, { baseline: 'top' });
+                        doc.text(time, timeX, y + 6, { baseline: 'top' });
+                        doc.text(row.category, categoryX, y + 6, { baseline: 'top' });
+                        
+                        doc.line(nameX - 10, y + rowHeight, nameX - 10 + tableWidth, y + rowHeight);
+                        y += rowHeight;
+                    });
+
+                    doc.line(nameX - 10, tableTop, nameX - 10, y);
+                    doc.line(dateX - 10, tableTop, dateX - 10, y);
+                    doc.line(timeX - 10, tableTop, timeX - 10, y);
+                    doc.line(categoryX - 10, tableTop, categoryX - 10, y);
+                    doc.line(nameX - 10 + tableWidth, tableTop, nameX - 10 + tableWidth, y);
+                };
+
+                generateTable(doc, results);
+
+                doc.addPage();
                 
-                const tableColumn = ["Name", "Date", "Time", "Category"];
-                const tableRows = [];
-
-                results.forEach(row => {
-                    const d = new Date(row.date);
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const dayOfMonth = String(d.getDate()).padStart(2, '0');
-                    const csvDate = `${month}/${dayOfMonth}/${year}`;
-                    
-                    const hours = String(d.getHours()).padStart(2, '0');
-                    const minutes = String(d.getMinutes()).padStart(2, '0');
-                    const seconds = String(d.getSeconds()).padStart(2, '0');
-                    // FIX: Restored seconds precision to align with original server.js formatting.
-                    const time = `${hours}:${minutes}:${seconds}`;
-
-                    tableRows.push([
-                        row.entryName,
-                        csvDate,
-                        time,
-                        row.category
-                    ]);
-                });
-
-                autoTable(doc, {
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 20,
-                    styles: { fontSize: 10 },
-                    headStyles: { fillColor: [41, 128, 185] }
-                });
-
                 const now = new Date();
                 const reportDate = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`;
-                const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                
-                doc.setFontSize(10);
-                doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, 10);
+                const reportTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-                const finalY = doc.lastAutoTable.finalY || 20;
-                let yPos = finalY + 10;
-                doc.text(`Successfully exported ${results.length} scans, using the following options:`, 14, yPos);
-                yPos += 6;
+                let yOffset = 72;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 72, yOffset, { baseline: 'top' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                
+                yOffset += 14.4;
+                doc.text(`Successfully exported ${results.length} scans, using the following options:`, 72, yOffset, { baseline: 'top' });
+                
+                yOffset += 14.4;
                 let categoryString = 'All';
                 if (categories) {
                     categoryString = Array.from(selectedCategories)
                         .map(code => allCategories.find(c => c.code === code)?.name || 'Unknown')
                         .join(', ');
                 }
-                doc.text(`Categories: ${categoryString}`, 14, yPos);
-                yPos += 8;
+                doc.text(`Categories: ${categoryString}`, 72, yOffset, { baseline: 'top' });
+                
+                yOffset += 28.8;
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
-                doc.text("Scansheet v1.0.0", 14, yPos);
+                doc.text("Scansheet v1.0.0", 72, yOffset, { baseline: 'top' });
 
                 const pdfBytes = doc.output('arraybuffer');
                 

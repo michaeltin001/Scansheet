@@ -10,11 +10,15 @@ use base64::{Engine as _, engine::general_purpose};
 
 fn generate_qr_code_base64(data: &str) -> Result<String, String> {
     let code = QrCode::new(data).map_err(|e| format!("Failed to create QR code: {}", e))?;
-    // Use module_dimensions(5, 5) to prevent DB bloat while keeping sharp edges
+    // Generate a base image with a smaller module scale, we'll resize it next
     let image = code.render::<Luma<u8>>().module_dimensions(5, 5).build();
     let dynamic_image = DynamicImage::ImageLuma8(image);
+    
+    // Resize to exactly 500x500 using Nearest Neighbor to preserve crisp edges
+    let resized_image = dynamic_image.resize_exact(500, 500, image::imageops::FilterType::Nearest);
+    
     let mut cursor = Cursor::new(Vec::new());
-    dynamic_image.write_to(&mut cursor, image::ImageFormat::Png).map_err(|e| format!("Failed to write image: {}", e))?;
+    resized_image.write_to(&mut cursor, image::ImageFormat::Png).map_err(|e| format!("Failed to write image: {}", e))?;
     let base64_str = general_purpose::STANDARD.encode(cursor.into_inner());
     Ok(format!("data:image/png;base64,{}", base64_str))
 }

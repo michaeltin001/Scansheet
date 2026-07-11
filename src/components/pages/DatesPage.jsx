@@ -413,7 +413,7 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
             const { writeFile } = await import('@tauri-apps/plugin-fs');
 
             const filePath = await save({
-                defaultPath: 'dates_export.csv',
+                defaultPath: 'dates.csv',
                 filters: [{ name: 'CSV', extensions: ['csv'] }]
             });
 
@@ -457,10 +457,8 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
             const { save } = await import('@tauri-apps/plugin-dialog');
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const { jsPDF } = await import('jspdf');
-            const { default: autoTable } = await import('jspdf-autotable');
-
             const filePath = await save({
-                defaultPath: 'dates_export.pdf',
+                defaultPath: 'dates.pdf',
                 filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
 
@@ -475,22 +473,64 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
                 return order === 'ASC' ? dateA - dateB : dateB - dateA;
             });
 
-            const doc = new jsPDF();
+            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+            doc.setLineWidth(1);
             
-            const tableData = sortedDates.map(dateStr => {
+            const formattedDates = sortedDates.map(dateStr => {
                  const date = new Date(dateStr);
                  const correctedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
                  const month = String(correctedDate.getMonth() + 1).padStart(2, '0');
                  const day = String(correctedDate.getDate()).padStart(2, '0');
                  const year = correctedDate.getFullYear();
-                 return [`${month}/${day}/${year}`];
+                 return `${month}/${day}/${year}`;
             });
 
-            autoTable(doc, {
-                head: [['Date']],
-                body: tableData,
-                margin: { top: 30 }
-            });
+            const generateTable = (doc, tableRows) => {
+                let tableTop = 72;
+                const dateX = 72;
+                const tableWidth = 478;
+                const rowHeight = 25;
+                let y = tableTop;
+
+                const drawPage = (isFirstPage) => {
+                    if (!isFirstPage) {
+                        doc.addPage();
+                        tableTop = 72;
+                        y = tableTop;
+                    }
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.text('Date', dateX, y + 6, { baseline: 'top' });
+
+                    doc.line(dateX - 10, y, dateX - 10 + tableWidth, y);
+                    doc.line(dateX - 10, y + rowHeight, dateX - 10 + tableWidth, y + rowHeight);
+
+                    y += rowHeight;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(12);
+                };
+
+                drawPage(true);
+
+                tableRows.forEach((formattedDate, index) => {
+                     if (index > 0 && index % 25 === 0) {
+                        doc.line(dateX - 10, tableTop, dateX - 10, y);
+                        doc.line(dateX - 10 + tableWidth, tableTop, dateX - 10 + tableWidth, y);
+                        drawPage(false);
+                    }
+
+                    doc.setFontSize(10);
+                    doc.text(formattedDate, dateX, y + 6, { baseline: 'top' });
+                    doc.line(dateX - 10, y + rowHeight, dateX - 10 + tableWidth, y + rowHeight);
+                    y += rowHeight;
+                });
+
+                doc.line(dateX - 10, tableTop, dateX - 10, y);
+                doc.line(dateX - 10 + tableWidth, tableTop, dateX - 10 + tableWidth, y);
+            };
+
+            generateTable(doc, formattedDates);
 
             // Append summary page
             doc.addPage();
@@ -505,14 +545,15 @@ const DatesPage = ({ statusMessage, setStatusMessage }) => {
             
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            const reportTime = `${hours}:${minutes}`;
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const reportTime = `${hours}:${minutes}:${seconds}`;
 
-            let yOffset = 20;
-            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 14, yOffset);
-            yOffset += 10;
-            doc.text(`Successfully exported ${datesToExport.length} dates.`, 14, yOffset);
-            yOffset += 10;
-            doc.text("Scansheet v1.0.0", 14, yOffset);
+            let yOffset = 72;
+            doc.text(`Generated report on ${reportDate} at ${reportTime}.`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text(`Successfully exported ${datesToExport.length} dates.`, 72, yOffset, { baseline: 'top' });
+            yOffset += 14.4;
+            doc.text("Scansheet v1.0.0", 72, yOffset, { baseline: 'top' });
 
             const arrayBuffer = doc.output('arraybuffer');
             await writeFile(filePath, new Uint8Array(arrayBuffer));
