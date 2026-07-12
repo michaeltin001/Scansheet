@@ -1,8 +1,8 @@
 [package]
-name = "app"
-version = "0.1.0"
+name = "scansheet"
+version = "2.0.0"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["michaeltin001"]
 license = ""
 repository = ""
 edition = "2021"
@@ -34,3 +34,6 @@ genpdf = "0.2"
 chrono = "0.4"
 base64 = "0.22.1"
 encoding_rs = "0.8"
+
+[dev-dependencies]
+tauri = { version = "2.11.3", features = ["test"] }
