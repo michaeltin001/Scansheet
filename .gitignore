@@ -35,3 +35,6 @@ dist-ssr
 /archive/server/database.sqlite
 /archive/server/test_database.sqlite
 /archive/server/uploads/
+
+# Rust backup files
+**/*.rs.bk

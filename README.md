@@ -9,49 +9,52 @@
 * Filter attendance records for an individual date by category.
 * Generate printable badges for a user-defined selection of entries.
 
-[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=000)](#)
-[![Node.js](https://img.shields.io/badge/Node.js-6DA55F?logo=node.js&logoColor=white)](#)
-[![npm](https://img.shields.io/badge/npm-CB3837?logo=npm&logoColor=fff)](#)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=fff)](#)
-[![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](#)
-[![Framer](https://img.shields.io/badge/Framer-05F?logo=framer&logoColor=fff)](#)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-%2338B2AC.svg?logo=tailwind-css&logoColor=white)](#)
-[![Express.js](https://img.shields.io/badge/Express.js-%23404d59.svg?logo=express&logoColor=%2361DAFB)](#)
-[![SQLite](https://img.shields.io/badge/SQLite-%2307405e.svg?logo=sqlite&logoColor=white)](#)
-[![Jest](https://img.shields.io/badge/Jest-C21325?logo=jest&logoColor=fff)](#)
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](#)
+![Tauri](https://img.shields.io/badge/Tauri-000000?style=for-the-badge&logo=tauri&logoColor=24C8D8)
+![React](https://img.shields.io/badge/react-000000?style=for-the-badge&logo=react&logoColor=61DAFB)
+![JavaScript](https://img.shields.io/badge/JavaScript-000000?style=for-the-badge&logo=javascript&logoColor=F7DF1E)
+![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=D34516)
+![TailwindCSS](https://img.shields.io/badge/tailwindcss-000000?style=for-the-badge&logo=tailwind-css&logoColor=38B2AC)
+![Framer](https://img.shields.io/badge/Framer-000000?style=for-the-badge&logo=framer&logoColor=0055FF)
+![SQLite](https://img.shields.io/badge/SQLite-000000?style=for-the-badge&logo=sqlite&logoColor=003B57)
+![Vite](https://img.shields.io/badge/Vite-000000?style=for-the-badge&logo=vite&logoColor=9135FF)
+![npm](https://img.shields.io/badge/npm-000000?style=for-the-badge&logo=npm&logoColor=CB3837)
+![ESLint](https://img.shields.io/badge/ESLint-000000?style=for-the-badge&logo=eslint&logoColor=4B3263)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?style=for-the-badge&logo=github-actions&logoColor=2088FF)
+
+<!-- Why this order? https://share.gemini.google/dqTPtk9bHJ5w -->
 
 ## Installation
 
 1. Clone the repository and navigate to the project folder directory.
 
-```
+```bash
 git clone https://github.com/michaeltin001/Scansheet.git
 cd Scansheet
 ```
 
 2. Install the project dependencies.
 
-```
-npm run install-all --prefix server
-```
-
-3. Start the development server.
-
-```
-npm run dev --prefix server
+```bash
+npm install
 ```
 
-4. Run server-side tests.
+3. Start the application in development mode.
 
-```
-npm run tests --prefix server
+```bash
+npm run tauri dev
 ```
 
-5. Build the client application.
+4. Run the Rust test suite.
 
+```bash
+cd src-tauri
+cargo test -- --nocapture
 ```
-npm run build --prefix client
+
+5. Build the application for production.
+
+```bash
+npm run tauri build
 ```
 
 ## Overview
