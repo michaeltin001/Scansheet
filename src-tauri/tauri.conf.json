@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "scansheet",
-  "version": "2.0.0",
+  "productName": "Scansheet",
+  "version": "2.0.1",
   "identifier": "com.scansheet.app",
   "build": {
     "frontendDist": "../dist",
